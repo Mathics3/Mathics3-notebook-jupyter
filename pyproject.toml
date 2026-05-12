@@ -1,0 +1,46 @@
+[build-system]
+requires = [
+    "setuptools>=80", # CVE-2024-38335 and later CVE's recommend this
+    "wheel",
+    "packaging",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+description = "Jupyter Notebook integration for Mathics3"
+dependencies = [
+    "mathics3_notebook_frontends >= 1.0.0",
+    "jupyter_client",
+    "jupyterlab",
+]
+license = "GPL-3.0-or-later"
+name = "mathics3_jupyter_notebook"
+requires-python = ">=3.11"
+maintainers = [
+    {name = "Mathics3 Group", email = "mathics-devel@googlegroups.com"},
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Interpreters",
+]
+version = "1.0.0"
+
+[project.urls]
+Homepage = "https://mathics.org/"
+Downloads = "https://github.com/Mathics3/Mathics3-notebook-jupyter/releases"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+
+[tool.setuptools.packages.find]
+include = ["mathics3_jupyter_notebook"]

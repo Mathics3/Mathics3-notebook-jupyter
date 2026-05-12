@@ -1,0 +1,4 @@
+*~
+/.python-version
+/mathics3_jupyter_notebook.egg-info
+__pycache__
