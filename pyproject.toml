@@ -35,6 +35,11 @@ classifiers = [
 ]
 version = "1.0.0"
 
+[project.optional-dependencies]
+dev = [
+    "jupyter-console",
+]
+
 [project.urls]
 Homepage = "https://mathics.org/"
 Downloads = "https://github.com/Mathics3/Mathics3-notebook-jupyter/releases"

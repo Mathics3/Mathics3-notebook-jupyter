@@ -11,7 +11,7 @@ Install all of the prerequisites:
 $ pip install -e .
 ```
 
-Register the Mathics3 kernel into Jupyter.
+Register the Mathics3 kernel for Jupyter vai via JSON file `mathics3-jupyter/kernel.json`.
 
 ```console
 $ python3 -m mathics3_jupyter_notebook.install

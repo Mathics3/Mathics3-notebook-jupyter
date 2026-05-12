@@ -15,10 +15,10 @@ def install_mathics3_kernel(user=True, prefix=None):
     kernel_json = {
         "argv": [
             sys.executable,
-            "-m", "mathics3_kernel.frontend.jupyter",  # The module that handles the kernel loop
+            "-m", "mathics3_jupyter.kernel",  # The module that handles the kernel loop
             "-f", "{connection_file}"
         ],
-        "display_name": "Mathics3",
+        "display_name": "Mathics3-jupyter",
         "language": "mathematica",
     }
 
@@ -30,9 +30,9 @@ def install_mathics3_kernel(user=True, prefix=None):
         print("Installing Jupyter kernel spec for Mathics3...")
         try:
             KernelSpecManager().install_kernel_spec(
-                td, 'mathics3', user=user, prefix=prefix
+                td, 'mathics3-jupyter', user=user, prefix=prefix
             )
-            print("Successfully installed Mathics3 kernel.")
+            print("Successfully installed Mathics3 kernel in mathics3-jupyter/kernel.json")
         except Exception as e:
             print(f"Failed to install kernel: {e}")
 
