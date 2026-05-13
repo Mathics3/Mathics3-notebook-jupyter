@@ -16,13 +16,13 @@ class Mathics3Kernel(Kernel):
     language_info = {
         "name": "mathematica",
         "mimetype": "text/x-mathematica",
-        "file_extension": ".m",
+        "file_extension": ".wl",
     }
     banner = "Mathics3 Kernel - A Wolfram Language compatible engine"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Do NOT name this 'self.session'.
+        # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
         self.formatter = JupyterFormatter()
@@ -39,23 +39,24 @@ class Mathics3Kernel(Kernel):
         )
 
     def do_execute(
-        self, code, silent, store_history=True, user_expressions=None, allow_stdin=True
+        self,
+        code: str,
+        silent,
+        store_history=True,
+        user_expressions=None,
+        allow_stdin=True,
     ):
-        if not self.session:
-            return {
-                "status": "error",
-                "ename": "ImportError",
-                "evalue": "Mathics core not loaded",
-                "traceback": [],
-            }
+        """
+        This method is hooked in by the IPKernelApp.launch_instance(kernel_class=Mathics3Kernel) call from __main__.py.
 
+        It evaluates `code` as a Mathics3 expression and sends the output back to Jupyter
+        """
         if not silent and self.mathics_engine:
             try:
                 # Evaluate the input code using the Mathics3 engine
                 # Mathics3 returns an object that we can convert to a string
-                result = self.mathics_engine.evaluate(code)
-                output = str(result)
-
+                expr = self.mathics_engine.evaluate(code)
+                output = str(expr)
                 # Send the result back to the Jupyter frontend
                 stream_content = {"name": "stdout", "text": output}
                 self.send_response(self.iopub_socket, "stream", stream_content)
