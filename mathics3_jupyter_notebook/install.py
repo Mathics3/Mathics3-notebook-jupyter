@@ -1,41 +1,62 @@
-"""
-Installs a Mathics3 kernel for use inside Jupyter.
-"""
-
 import argparse
 import json
 import os
+import os.path as osp
+import shutil
 import sys
 from tempfile import TemporaryDirectory
 
 from jupyter_client.kernelspec import KernelSpecManager
 
+KERNEL_NAME = "Mathics3 (for Jupyter)"
+DISPLAY_NAME = "Mathics3 (for Jupyter)"
+# The source directory for icons relative to the project root
+ICON_SOURCE_DIR = osp.normpath(osp.join(osp.dirname(__file__), "..", "icons"))
 
-def install_mathics3_kernel(user=True, prefix=None):
-    """
-    Registers the Mathics3 kernel with Jupyter.
-    """
-    kernel_json = {
-        "argv": [
-            sys.executable,
-            "-m",
-            "mathics3_jupyter_notebook.kernel",  # The module that handles the kernel loop
-            "-f",
-            "{connection_file}",
-        ],
-        "display_name": "Mathics3-jupyter",
-        "language": "mathematica",
-    }
+kernel_json = {
+    "argv": [
+        sys.executable,
+        "-m",
+        "mathics3_jupyter_notebook.kernel",  # The module that handles the kernel loop
+        "-f",
+        "{connection_file}",
+    ],
+    "display_name": DISPLAY_NAME,
+    "language": "mathematica",
+}
 
-    with TemporaryDirectory() as td:
+
+def install_my_kernel_spec(user=True, prefix=None):
+    """
+    Creates a JSON 'kernel.json' file custom for the Mathics3 Jupyter kernel of
+    this project.
+    """
+    with TemporaryDirectory(prefix="kernel-", suffix=".json") as td:
         os.chmod(td, 0o755)  # Ensure Jupyter can read the directory
+
+        # Write the kernel.json file
         with open(os.path.join(td, "kernel.json"), "w") as f:
             json.dump(kernel_json, f, sort_keys=True, indent=4)
 
-        print("Installing Jupyter kernel spec for Mathics3...")
+        # Jupyter specifically looks for logo-32x32.png and logo-64x64.png
+        icon_found = False
+        if osp.isdir(ICON_SOURCE_DIR):
+            for icon_name in ["favicon-32x32.png", "favicon-64x64.png"]:
+                src_path = osp.normpath(osp.join(ICON_SOURCE_DIR, icon_name))
+                if osp.exists(src_path):
+                    print(f"Found icon: {icon_name}, adding to kernelspec...")
+                    shutil.copy(src_path, td)
+                    icon_found = True
+
+        if not icon_found:
+            print(
+                f"Warning: No icons found in {ICON_SOURCE_DIR}/. Kernel will install without a logo."
+            )
+
+        print(f"Installing Jupyter kernel spec for {DISPLAY_NAME}...")
         try:
             KernelSpecManager().install_kernel_spec(
-                td, "mathics3-jupyter", user=user, prefix=prefix
+                td, KERNEL_NAME, user=user, prefix=prefix
             )
             print(
                 "Successfully installed Mathics3 kernel in mathics3-jupyter/kernel.json"
@@ -44,12 +65,39 @@ def install_mathics3_kernel(user=True, prefix=None):
             print(f"Failed to install kernel: {e}")
 
 
+def _is_root():
+    try:
+        return os.getuid() == 0
+    except AttributeError:
+        return False  # Windows
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description=f"Install the {DISPLAY_NAME} kernel spec for Jupyter."
+    )
+    parser.add_argument(
+        "--user",
+        action="store_true",
+        help="Install to the per-user kernelspec directory",
+    )
+    parser.add_argument(
+        "--sys-prefix",
+        action="store_true",
+        help="Install to Python's sys.prefix (e.g. venv)",
+    )
+    parser.add_argument("--prefix", help="Install to the given prefix")
+
+    args = parser.parse_args(argv)
+
+    if args.sys_prefix:
+        args.prefix = sys.prefix
+    if not args.prefix and not args.user and _is_root():
+        args.user = False
+
+    install_my_kernel_spec(user=args.user or True, prefix=args.prefix)
+    print("Installation complete.")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Install Mathics3 Kernel")
-    parser.add_argument("--user", action="store_true", help="Install to user directory")
-    parser.add_argument("--prefix", help="Install to a specific prefix")
-
-    args = parser.parse_args()
-
-    # Default to user install if not specified
-    install_mathics3_kernel(user=args.user or True, prefix=args.prefix)
+    main()

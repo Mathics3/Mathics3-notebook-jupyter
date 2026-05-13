@@ -1,9 +1,10 @@
 from ipykernel.kernelbase import Kernel
 from IPython.display import Javascript, display
+from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
 
-from mathics3_jupyter_notebook.formatter import JupyterFormatter
+from mathics3_jupyter_notebook.formatter import Mathics3JupyterFormatter
 
 import_and_load_builtins()
 
@@ -18,14 +19,14 @@ class Mathics3Kernel(Kernel):
         "mimetype": "text/x-mathematica",
         "file_extension": ".wl",
     }
-    banner = "Mathics3 Kernel - A Wolfram Language compatible engine"
+    banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
-        self.formatter = JupyterFormatter()
+        self.formatter = Mathics3JupyterFormatter()
         display(
             Javascript(
                 """
@@ -51,7 +52,16 @@ class Mathics3Kernel(Kernel):
 
         It evaluates `code` as a Mathics3 expression and sends the output back to Jupyter
         """
-        if not silent and self.mathics_engine:
+        if not code.strip():
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+        if store_history:
+            self.execution_count += 1
+        if not silent:
             try:
                 # Evaluate the input code using the Mathics3 engine
                 # Mathics3 returns an object that we can convert to a string
