@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 
 from jupyter_client.kernelspec import KernelSpecManager
 
-KERNEL_NAME = "Mathics3 (for Jupyter)"
+KERNEL_NAME = "Mathics3-Jupyter"
 DISPLAY_NAME = "Mathics3 (for Jupyter)"
 # The source directory for icons relative to the project root
 ICON_SOURCE_DIR = osp.normpath(osp.join(osp.dirname(__file__), "..", "static"))
