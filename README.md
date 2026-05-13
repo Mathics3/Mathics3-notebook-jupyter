@@ -1,7 +1,6 @@
 # Mathics3 Jupyter notebook
 
-This library provides helper functions for integrating Mathics3 into notebook environments.
-Currently, it supports Jupyter(Lite), marimo, and Observable.
+This provides a kernel for Mathics3 inside Jupyter.
 
 ## Building
 
