@@ -11,7 +11,7 @@ from jupyter_client.kernelspec import KernelSpecManager
 KERNEL_NAME = "Mathics3 (for Jupyter)"
 DISPLAY_NAME = "Mathics3 (for Jupyter)"
 # The source directory for icons relative to the project root
-ICON_SOURCE_DIR = osp.normpath(osp.join(osp.dirname(__file__), "..", "icons"))
+ICON_SOURCE_DIR = osp.normpath(osp.join(osp.dirname(__file__), "..", "static"))
 
 kernel_json = {
     "argv": [
@@ -41,7 +41,7 @@ def install_my_kernel_spec(user=True, prefix=None):
         # Jupyter specifically looks for logo-32x32.png and logo-64x64.png
         icon_found = False
         if osp.isdir(ICON_SOURCE_DIR):
-            for icon_name in ["favicon-32x32.png", "favicon-64x64.png"]:
+            for icon_name in ["logo-32x32.png", "logo-64x64.png"]:
                 src_path = osp.normpath(osp.join(ICON_SOURCE_DIR, icon_name))
                 if osp.exists(src_path):
                     print(f"Found icon: {icon_name}, adding to kernelspec...")
