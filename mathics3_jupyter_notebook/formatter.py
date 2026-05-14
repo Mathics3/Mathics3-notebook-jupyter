@@ -2,77 +2,122 @@
 Jupyter Mathics3 Formatter module
 """
 
+from typing import Dict, Final
+
+from mathics.core.atoms import String
+from mathics.core.systemsymbols import (
+    SymbolAborted,
+    SymbolFailed,
+    SymbolInterpretationBox,
+    SymbolOutputForm,
+    SymbolStandardForm,
+    SymbolTeXForm,
+)
+from mathics.format.box import format_element
+
 # import base64
 # from mathics.formatters import MathicsLaTeXFormatter
-from IPython.display import HTML, Code, Javascript, Math
-from mathics3_kernel.frontend.format import Formatter
 
 
-class Mathics3JupyterFormatter(Formatter):
+# Maps a Form to a kind of html format.
+# text is the usual text-kind of output.
+# LaTeX is handled by MathJaX display mode $$ $$
+# MathML could be tagged differently too.
+FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
+    "System`FullForm": "text",
+    "System`InputForm": "text",
+    "System`MathMLForm": "MathML",
+    "System`OutputForm": "text",
+    "System`TeXForm": "LaTeX",
+    "System`String": "text",
+}
+
+
+def format_output(evaluation, expr, execution_count: int) -> dict:
     """
-    Handles the conversion of Mathics3 expressions into Jupyter-compatible
-    MIME types (text/plain, text/latex, image/svg+xml, etc.)
+    Handle unformatted output using the *specific* capabilities \
+    of mathics-django.
+
+    evaluation.py format_output() from which this was derived is \
+    similar but it can't make use of a front-ends \
+    specific capabilities.
+
+    :param evaluation: The Mathics3 evaluation context
+    :param expr: The expression result to format
     """
 
-    def __init__(self):
-        # We reuse the LaTeX formatter instance for efficiency
-        # self.latex_formatter = MathicsLaTeXFormatter()
-        pass
+    def build_content(content: dict, mime_type, value) -> dict:
+        data = {
+            mime_type: value,
+        }
+        content["data"] = data
+        return content
 
-    def text(self, result):
-        return Code(result, language="mathematica")
+    # Start with the standard plain text representation
+    content = {"execution_count": execution_count, "metadata": {}}
 
-    def math(self, result):
-        return Math(result)
+    if expr is SymbolAborted:
+        return build_content(content, "text/plain", "$Aborted")
+    elif expr is SymbolFailed:
+        return build_content(content, "text/plain", "$Failed")
 
-    def graphics3d(self, result):
-        # return JSON(json.loads(result))
-        return Javascript(f"drawGraphics3d(element, {result})")
+    # For some expressions, we want formatting to be different.
+    # In particular for FullForm and InputForm output, we don't want
+    # MathML, we want
+    # plain-ol' text so we can cut and paste that.
+    expr_type = expr.get_head_name()
+    # For these forms, we strip off the outer "Form" part
+    html_tag_format = FORM_TO_HTML_TAG_FORMAT.get(expr_type, "xml")
 
-    def svg(self, result):
-        return self.html(result)
+    # This part is similar to mathics.core.evaluation.format_output().
+    if html_tag_format == "text":
+        boxed = format_element(expr, evaluation, SymbolOutputForm)
+        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+            return build_content(content, "text/plain", boxed.elements[0].value)
 
-    def html(self, result):
-        result = result.replace("<math", "<div")
-        result = result.replace("<mglyph", '<img style="display: inline-block" ')
-        result = result.replace("<mrow>", "")
-        result = result.replace("<mo>", "")
-        return HTML(result)
+        result = boxed.boxes_to_text()
+        return build_content(content, "text/plain", result)
 
-    def format_output(self, evaluation, expr):
-        """
-        Processes a Mathics3 expression and returns a dictionary mapping
-        MIME types to their formatted string/byte data.
+    if html_tag_format == "xml":
+        boxed = format_element(expr, evaluation, SymbolStandardForm)
+        if (
+            hasattr(boxed, "head")
+            and boxed.head is SymbolInterpretationBox
+            and (box_value := boxed.elements[0].value).startswith('"<math ')
+        ):
+            # FIXME: [1:-1] is to strip quotes.
+            # We should probably address a long-standing mistake where strings
+            # have quotes in them.
+            return build_content(content, "text/html", box_value)
 
-        :param evaluation: The Mathics3 evaluation context
-        :param expr: The expression result to format
-        """
-        # Start with the standard plain text representation
-        data = {"text/plain": str(expr)}
+        # This can happen.
+        mathml = boxed.to_mathml(evaluation=evaluation)
+        return build_content(content, "text/html", f"<math>{mathml}</math>")
 
-        # try:
-        #     # We attempt to format the expression as LaTeX for MathJax rendering
-        #     latex_code = self.latex_formatter.format(expr)
-        #     if latex_code:
-        #         data['text/latex'] = f"${latex_code}$"
-        # except Exception:
-        #     # If LaTeX formatting fails, we fallback gracefully
-        #     pass
+    if html_tag_format == "LaTeX":
+        boxed = format_element(expr, evaluation, SymbolTeXForm)
+        render_TeXForm_expr = evaluation.parse("Settings`$RenderTeXForm")
+        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+            # FIXME: [1:-1] is to strip quotes.
+            # We should probably address a long-standing mistake where strings
+            # have quotes in them.
+            box_str_sans_quotes = boxed.elements[0].value[1:-1]
+            render_TeXForm = render_TeXForm_expr.evaluate(evaluation).to_python()
+            if render_TeXForm:
+                box_str_sans_quotes = f"$${box_str_sans_quotes}$$"
+            return build_content(content, "text/latex", box_str_sans_quotes)
 
-        # try:
-        #     # Check for SVG support (vector graphics)
-        #     if hasattr(expr, 'get_as_svg'):
-        #         svg_data = expr.get_as_svg()
-        #         if svg_data:
-        #             data['image/svg+xml'] = svg_data
+        # THINK ABOUT: This probably no longer happens
+        if isinstance(boxed, String):
+            return build_content(content, "text/plain", boxed.to_text())
+        else:
+            render_TeXForm = render_TeXForm_expr.evaluate(evaluation).to_python()
+            result = boxed.to_tex(evaluation=evaluation)
+            if render_TeXForm:
+                result = f"$${result}$$"
+                mime_type = "text/latex"
+            else:
+                mime_type = "text/plain"
+            return build_content(content, mime_type, result)
 
-        #     # Check for PNG support (raster graphics)
-        #     elif hasattr(expr, 'get_as_png'):
-        #         png_bytes = expr.get_as_png()
-        #         if png_bytes:
-        #             data['image/png'] = base64.b64encode(png_bytes).decode('ascii')
-        # except Exception:
-        #     # Graphics errors should not crash the kernel execution
-        #     pass
-
-        return data
+    return build_content(content, "text/plain", str(expr))

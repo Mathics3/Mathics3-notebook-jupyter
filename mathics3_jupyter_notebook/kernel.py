@@ -4,7 +4,7 @@ from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
 
-from mathics3_jupyter_notebook.formatter import Mathics3JupyterFormatter
+from mathics3_jupyter_notebook.formatter import format_output
 
 import_and_load_builtins()
 
@@ -33,7 +33,6 @@ class Mathics3Kernel(Kernel):
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
-        self.formatter = Mathics3JupyterFormatter()
         display(
             Javascript(
                 """
@@ -75,11 +74,17 @@ class Mathics3Kernel(Kernel):
             try:
                 # Evaluate the input code using the Mathics3 engine
                 # Mathics3 returns an object that we can convert to a string
+
                 expr = self.mathics_engine.evaluate(code)
-                output = str(expr)
+                # # Send the result back to the Jupyter frontend
+                # output = str(expr)
+                # stream_content = {"name": "stdout", "text": output}
+                # self.send_response(self.iopub_socket, "stream", stream_content)
+
+                evaluation = self.mathics_engine.evaluation
+                content = format_output(evaluation, expr, self.execution_count)
                 # Send the result back to the Jupyter frontend
-                stream_content = {"name": "stdout", "text": output}
-                self.send_response(self.iopub_socket, "stream", stream_content)
+                self.send_response(self.iopub_socket, "execute_result", content)
 
             except Exception as e:
                 # Handle errors during evaluation
