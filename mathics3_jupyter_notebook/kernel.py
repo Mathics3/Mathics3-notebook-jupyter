@@ -59,6 +59,11 @@ class Mathics3Kernel(Kernel):
 
         It evaluates `code` as a Mathics3 expression and sends the output back to Jupyter
         """
+        if not store_history:
+            # Something somewhere else is incrementing execution count.
+            # So we subtract 1, here if we don't want the cell number
+            # to increment.
+            self.execution_count -= 1
         if not code.strip():
             return {
                 "status": "ok",

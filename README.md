@@ -37,5 +37,18 @@ that can be used with a local Jupyter installation.
 ## Running
 
 ```console
-$ jupyter lab
+$ jupyter lab  # or:  make lab
+```
+
+## Debugging
+
+Install `jupyter-console` and run `jupyter console` via `make`:
+
+```console
+$ make console
+jupyter console --kernel=mathics3-jupyter
+Jupyter console 6.6.3
+
+Mathics3 10.0.2dev0 Kernel (1.0)- A Mathematica-compatible engine
+...
 ```
