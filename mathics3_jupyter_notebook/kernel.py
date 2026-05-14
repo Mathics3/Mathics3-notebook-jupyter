@@ -12,14 +12,21 @@ import_and_load_builtins()
 class Mathics3Kernel(Kernel):
     implementation = "Mathics3"
     implementation_version = "1.0"
-    language = "mathematica"
+    language = "mathematica3"
     language_version = "1.0"
+    banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
+    help_links = [
+        {"text": "Mathics3", "url": "https://mathics.org/"},
+        {
+            "text": "Mathics3-notebook-jupyter GitHub",
+            "url": "https://github.com/Mathics3/Mathics3-notebook-jupyter",
+        },
+    ]
     language_info = {
         "name": "mathematica",
         "mimetype": "text/x-mathematica",
         "file_extension": ".wl",
     }
-    banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -59,8 +66,6 @@ class Mathics3Kernel(Kernel):
                 "payload": [],
                 "user_expressions": {},
             }
-        if store_history:
-            self.execution_count += 1
         if not silent:
             try:
                 # Evaluate the input code using the Mathics3 engine
@@ -86,6 +91,35 @@ class Mathics3Kernel(Kernel):
             "payload": [],
             "user_expressions": {},
         }
+
+    # This doesn't work...
+    # Nor does renaming "async def kernel_... to "def do_kernel_..."
+    # async def kernel_info_request(self, stream, ident, parent):
+    #     """Override the base handler to inject HTML metadata."""
+
+    #     # Build the standard content
+    #     content = {
+    #         'protocol_version': '5.3', # from ipykernel._version import kernel_protocol_version
+    #         'implementation': self.implementation,
+    #         'implementation_version': self.implementation_version,
+    #         'language_info': self.language_info,
+    #         'banner': self.banner, # Plain text fallback
+    #         'help_links': self.help_links,
+    #     }
+
+    #     # Add the Metadata block for HTML support
+    #     # Note: Different frontends look for different metadata keys.
+    #     content['metadata'] = {
+    #         'jupyter': {
+    #             'about': {
+    #                 'body': "<h1>Mathics3</h1><p>A <i>Wolfram Language</i> engine with <b>SymPy</b> integration.</p>",
+    #                 'logo': "static/logo-64x64.png"
+    #             }
+    #         }
+    #     }
+
+    #     # Send the response manually using the internal utility
+    #     self.send_response(stream, 'kernel_info_reply', content, ident)
 
 
 if __name__ == "__main__":
