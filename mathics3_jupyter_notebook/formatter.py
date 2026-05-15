@@ -9,17 +9,26 @@ from mathics.core.expression import BoxError, Expression
 from mathics.core.symbols import Symbol
 from mathics.core.systemsymbols import (
     SymbolAborted,
+    SymbolExportString,
     SymbolFailed,
     SymbolFullForm,
+    SymbolGraphics,
+    SymbolGraphics3D,
+    SymbolImage,
     SymbolInputForm,
     SymbolInterpretationBox,
     SymbolMathMLForm,
     SymbolOutputForm,
+    SymbolPlot,
     SymbolStandardForm,
     SymbolString,
     SymbolTeXForm,
 )
+
+# from mathics.eval.image import eval_ImageExport
 from mathics.format.box import format_element
+
+StringSVG = String("SVG")
 
 
 def format_output(evaluation, expr, execution_count: int) -> dict:
@@ -57,7 +66,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         mime_content["data"] = data
         return mime_content
 
-    def format_mathml(expr, mime_content: dict) -> dict:
+    def format_mathml(expr, evaluation, mime_content: dict) -> dict:
         boxed = format_element(expr, evaluation, SymbolMathMLForm)
         if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
             box_str = boxed.elements[0].value[1:-1]
@@ -69,7 +78,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, SymbolStandardForm)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
-    def format_text(expr, mime_content: dict) -> dict:
+    def format_text(expr, evaluation, mime_content: dict) -> dict:
         boxed = format_element(expr, evaluation, SymbolStandardForm)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
@@ -81,11 +90,10 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
     elif expr is SymbolFailed:
         return build_mime_content(mime_content, "text/html", "<i>$Failed</i>")
 
-    expr_type = expr.get_head_name()
     expr_head = expr.get_head()
 
     if expr_head is SymbolMathMLForm:
-        return format_mathml(expr, mime_content)
+        return format_mathml(expr, evaluation, mime_content)
 
     if expr_head is SymbolString:
         return build_mime_content(mime_content, "text/plain", f'"{expr.value}"')
@@ -113,4 +121,13 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, form)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
-    return format_mathml(expr, mime_content)
+    elif expr_head in (SymbolGraphics, SymbolImage, SymbolPlot):
+        svg_expr = Expression(SymbolExportString, expr, StringSVG)
+        svg_str = svg_expr.evaluate(evaluation).to_python(string_quotes=False)
+        return build_mime_content(mime_content, "image/svg+xml", svg_str)
+    # elif expr_head in (SymbolImage):
+    #     png_data = expr.pil().to_bytes()
+    #     return build_mime_content(mime_content, "image/svg+xml", png_data)
+
+    return format_mathml(expr, evaluation, mime_content)
+    # return format_text(expr, evaluation, mime_content)
