@@ -2,15 +2,12 @@
 Jupyter kernel for Mathics3.
 """
 
+import re
 import subprocess
 import sys
 
 from ipykernel.kernelbase import Kernel
-from IPython.core.interactiveshell import InteractiveShell
-
-# Add to mathics3_jupyter_notebook/kernel.py
-from IPython.core.magic import Magics, line_magic, magics_class
-from IPython.display import Javascript, display
+from IPython.display import HTML, Javascript, display
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
@@ -18,20 +15,6 @@ from mathics.session import MathicsSession
 from mathics3_jupyter_notebook.formatter import format_output
 
 import_and_load_builtins()
-
-
-@magics_class
-class PipMagic(Magics):
-    @line_magic
-    def pip(self, line):
-        """Support for %pip magic command"""
-        subprocess.check_call([sys.executable, "-m", "pip"] + line.split())
-        return None
-
-
-def load_ipython_extension(ipython: InteractiveShell):
-    """Load the pip magic when %load_ext is called"""
-    ipython.register_magics(PipMagic)
 
 
 class Mathics3Kernel(Kernel):
@@ -58,6 +41,27 @@ class Mathics3Kernel(Kernel):
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
+
+        # Inject custom CSS for left-aligned math output
+        display(
+            HTML(
+                """
+                /* related resource: base.css */
+                <style>
+                /* Left-align MathML output */
+                .output_area .output_result {
+                    text-align: left !important;
+                }
+
+                .output_area .output_result math {
+                    display: block !important;
+                    margin-left: 0 !important;
+                    margin-right: auto !important;
+                }
+                </style>
+                """
+            )
+        )
         display(
             Javascript(
                 """
@@ -69,6 +73,40 @@ class Mathics3Kernel(Kernel):
     """
             )
         )
+
+    def _handle_pip_magic(self, line: str) -> bool:
+        """Handle %pip magic command. Returns True if handled, False otherwise."""
+        pip_match = re.match(r"%pip\s+(.*)", line.strip())
+        if pip_match:
+            args = pip_match.group(1)
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip"] + args.split(),
+                    capture_output=True,
+                    text=True,
+                )
+                # Send output back to notebook
+                if result.stdout:
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {"name": "stdout", "text": result.stdout},
+                    )
+                if result.stderr:
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {"name": "stderr", "text": result.stderr},
+                    )
+                return True
+            except Exception as e:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {"name": "stderr", "text": f"Error running pip: {str(e)}\n"},
+                )
+                return True
+        return False
 
     def do_execute(
         self,
@@ -88,6 +126,7 @@ class Mathics3Kernel(Kernel):
             # So we subtract 1, here if we don't want the cell number
             # to increment.
             self.execution_count -= 1
+
         if not code.strip():
             return {
                 "status": "ok",
@@ -95,24 +134,28 @@ class Mathics3Kernel(Kernel):
                 "payload": [],
                 "user_expressions": {},
             }
+
+        # Handle magic commands
+        if self._handle_pip_magic(code):
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
         if not silent:
             try:
                 # Evaluate the input code using the Mathics3 engine
                 # Mathics3 returns an object that we can convert to a string
 
                 expr = self.mathics_engine.evaluate(code)
-                # # Send the result back to the Jupyter frontend
-                # output = str(expr)
-                # stream_content = {"name": "stdout", "text": output}
-                # self.send_response(self.iopub_socket, "stream", stream_content)
-
                 evaluation = self.mathics_engine.evaluation
                 content = format_output(evaluation, expr, self.execution_count)
                 # Send the result back to the Jupyter frontend
                 self.send_response(self.iopub_socket, "execute_result", content)
 
             except Exception as e:
-                # Handle errors during evaluation
                 return {
                     "status": "error",
                     "ename": type(e).__name__,
@@ -126,35 +169,6 @@ class Mathics3Kernel(Kernel):
             "payload": [],
             "user_expressions": {},
         }
-
-    # This doesn't work...
-    # Nor does renaming "async def kernel_... to "def do_kernel_..."
-    # async def kernel_info_request(self, stream, ident, parent):
-    #     """Override the base handler to inject HTML metadata."""
-
-    #     # Build the standard content
-    #     content = {
-    #         'protocol_version': '5.3', # from ipykernel._version import kernel_protocol_version
-    #         'implementation': self.implementation,
-    #         'implementation_version': self.implementation_version,
-    #         'language_info': self.language_info,
-    #         'banner': self.banner, # Plain text fallback
-    #         'help_links': self.help_links,
-    #     }
-
-    #     # Add the Metadata block for HTML support
-    #     # Note: Different frontends look for different metadata keys.
-    #     content['metadata'] = {
-    #         'jupyter': {
-    #             'about': {
-    #                 'body': "<h1>Mathics3</h1><p>A <i>Wolfram Language</i> engine with <b>SymPy</b> integration.</p>",
-    #                 'logo': "static/logo-64x64.png"
-    #             }
-    #         }
-    #     }
-
-    #     # Send the response manually using the internal utility
-    #     self.send_response(stream, 'kernel_info_reply', content, ident)
 
 
 if __name__ == "__main__":

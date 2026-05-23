@@ -2,6 +2,7 @@
 Jupyter Mathics3 Formatter module
 """
 
+import logging
 from typing import Callable
 
 from mathics.core.atoms import String
@@ -27,6 +28,21 @@ from mathics.core.systemsymbols import (
 
 # from mathics.eval.image import eval_ImageExport
 from mathics.format.box import format_element
+
+# Set up logging to file
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create file handler that logs to /tmp/j.log
+file_handler = logging.FileHandler("/tmp/j.log")
+file_handler.setLevel(logging.DEBUG)
+
+# Create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+
+# Add handler to logger
+logger.addHandler(file_handler)
 
 StringSVG = String("SVG")
 
@@ -70,13 +86,46 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, SymbolMathMLForm)
         if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
             box_str = boxed.elements[0].value[1:-1]
-            return build_mime_content(mime_content, "text/html", box_str)
+            # Wrap MathML for display math with left alignment
+            html_str = _wrap_mathml_for_display(box_str)
+            return build_mime_content(mime_content, "text/html", html_str)
 
         if isinstance(boxed, String) and boxed.value.startswith('"<math'):
-            return build_mime_content(mime_content, "text/html", boxed.value[1:-1])
+            box_str = boxed.value[1:-1]
+            logger.warning(f"MathML format_mathml 1: {box_str}")
+            html_str = _wrap_mathml_for_display(box_str)
+            return build_mime_content(mime_content, "text/html", html_str)
 
         boxed = format_element(expr, evaluation, SymbolStandardForm)
         return build_mime_content(mime_content, "text/plain", str(boxed))
+
+    def _wrap_mathml_for_display(math_html: str) -> str:
+        """
+        Wrap MathML in a container for display math (left-aligned, block-level).
+
+        Modifies the <math> element to use and wraps it
+        in a div with left alignment.
+        """
+        math_html = math_html.replace("<math", "<math", 1)
+        math_html = math_html.replace('display="block"', "")
+        logger.warning(f"MathML format_math: {math_html}")
+
+        # Wrap in a div for left alignment
+        return f'<div style="text-align: left; overflow-x: auto;">{math_html}</div>'
+
+        def build_mime_content(
+            mime_content: dict, mime_type, value, align=None
+        ) -> dict:
+            """Build MIME content with optional alignment styling."""
+            # If HTML and alignment specified, wrap in a div with alignment
+            if mime_type == "text/html" and align:
+                value = f'<div style="text-align: {align};">{value}</div>'
+
+            data = {
+                mime_type: value,
+            }
+            mime_content["data"] = data
+            return mime_content
 
     def format_text(expr, evaluation, mime_content: dict) -> dict:
         boxed = format_element(expr, evaluation, SymbolStandardForm)
