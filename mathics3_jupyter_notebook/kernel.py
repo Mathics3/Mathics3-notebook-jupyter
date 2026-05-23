@@ -2,16 +2,20 @@
 Jupyter kernel for Mathics3.
 """
 
+import pprint
 import re
 import subprocess
 import sys
 
 from ipykernel.kernelbase import Kernel
 from IPython.display import HTML, Javascript, display
+from io import StringIO
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
-from io import StringIO
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
 
 from mathics3_jupyter_notebook.formatter import format_output
 
@@ -21,7 +25,7 @@ import_and_load_builtins()
 class Mathics3Kernel(Kernel):
     implementation = "Mathics3"
     implementation_version = "1.0"
-    language = "mathematica3"
+    language = "mathematica"
     language_version = "1.0"
     banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
     help_links = [
@@ -112,6 +116,28 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
+    def _format_python_output(self, output_text: str) -> None:
+        """
+        Format and colorize Python output using Pygments and send to notebook.
+        """
+        # Use Pygments to highlight the output as Python code
+        formatter = HtmlFormatter(style="default", noclasses=True)
+        highlighted = highlight(output_text, PythonLexer(), formatter)
+
+        # Send as HTML with syntax highlighting
+        self.send_response(
+            self.iopub_socket,
+            "execute_result",
+            {
+                "execution_count": self.execution_count,
+                "data": {
+                    "text/html": f'<div style="text-align: left;">{highlighted}</div>',
+                    "text/plain": output_text,
+                },
+                "metadata": {},
+            },
+        )
+
     def _handle_python_magic(self, code: str) -> bool:
         """
         Handle %python magic command. Returns True if handled, False otherwise.
@@ -142,11 +168,9 @@ class Mathics3Kernel(Kernel):
                             {"name": "stdout", "text": output},
                         )
                     elif result is not None:
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {"name": "stdout", "text": str(result) + "\n"},
-                        )
+                        # Use pprint for pretty-printed output
+                        formatted_output = pprint.pformat(result)
+                        self._format_python_output(formatted_output)
                 except SyntaxError:
                     # If eval fails, try exec for multi-line statements
                     output = sys.stdout.getvalue()
