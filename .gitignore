@@ -1,6 +1,7 @@
 *~
+/*.ipynb
 /.ipynb_checkpoints
 /.python-version
-/*.ipynb
 /mathics3_jupyter_notebook.egg-info
+/tmp
 __pycache__
