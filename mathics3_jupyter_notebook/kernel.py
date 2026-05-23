@@ -25,7 +25,7 @@ import_and_load_builtins()
 class Mathics3Kernel(Kernel):
     implementation = "Mathics3"
     implementation_version = "1.0"
-    language = "mathematica3"
+    language = "mathematica"
     language_version = "1.0"
     banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
     help_links = [
@@ -112,6 +112,37 @@ class Mathics3Kernel(Kernel):
                     self.iopub_socket,
                     "stream",
                     {"name": "stderr", "text": f"Error running pip: {str(e)}\n"},
+                )
+                return True
+        return False
+
+    def _handle_markdown_magic(self, code: str) -> bool:
+        """Handle %markdown magic command. Returns True if handled, False otherwise."""
+        markdown_match = re.match(r"%markdown\s+(.*)", code.strip(), re.DOTALL)
+        if markdown_match:
+            markdown_content = markdown_match.group(1)
+            try:
+                # Send Markdown content as display_data
+                self.send_response(
+                    self.iopub_socket,
+                    "display_data",
+                    {
+                        "data": {
+                            "text/markdown": markdown_content,
+                            "text/plain": markdown_content,
+                        },
+                        "metadata": {},
+                    },
+                )
+                return True
+            except Exception as e:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {
+                        "name": "stderr",
+                        "text": f"Error rendering Markdown: {type(e).__name__}: {str(e)}\n",
+                    },
                 )
                 return True
         return False
@@ -260,6 +291,14 @@ class Mathics3Kernel(Kernel):
 
         # Handle magic commands
         if self._handle_pip_magic(code):
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        if self._handle_markdown_magic(code):
             return {
                 "status": "ok",
                 "execution_count": self.execution_count,
