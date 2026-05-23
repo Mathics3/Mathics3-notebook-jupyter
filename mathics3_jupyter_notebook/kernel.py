@@ -25,7 +25,7 @@ import_and_load_builtins()
 class Mathics3Kernel(Kernel):
     implementation = "Mathics3"
     implementation_version = "1.0"
-    language = "mathematica"
+    language = "mathematica3"
     language_version = "1.0"
     banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
     help_links = [
@@ -116,6 +116,27 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
+    def _display_python_input(self, python_code: str) -> None:
+        """
+        Display the Python input code with syntax highlighting in the input area.
+        """
+        # Use Pygments to highlight the input code
+        formatter = HtmlFormatter(style="default", noclasses=True)
+        highlighted = highlight(python_code, PythonLexer(), formatter)
+
+        # Send as display_data to show in the input area
+        self.send_response(
+            self.iopub_socket,
+            "display_data",
+            {
+                "data": {
+                    "text/html": f'<div style="text-align: left; background-color: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 10px;"><strong>Python Input:</strong><div style="margin-top: 5px;">{highlighted}</div></div>',
+                    "text/plain": python_code,
+                },
+                "metadata": {},
+            },
+        )
+
     def _format_python_output(self, output_text: str) -> None:
         """
         Format and colorize Python output using Pygments and send to notebook.
@@ -146,6 +167,10 @@ class Mathics3Kernel(Kernel):
         python_match = re.match(r"%python\s+(.*)", code.strip(), re.DOTALL)
         if python_match:
             python_code = python_match.group(1)
+
+            # Display the Python input with syntax highlighting
+            self._display_python_input(python_code)
+
             try:
                 # Capture stdout during execution
                 old_stdout = sys.stdout
