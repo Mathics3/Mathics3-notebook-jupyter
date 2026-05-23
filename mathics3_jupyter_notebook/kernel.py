@@ -2,16 +2,20 @@
 Jupyter kernel for Mathics3.
 """
 
+import pprint
 import re
 import subprocess
 import sys
 
 from ipykernel.kernelbase import Kernel
 from IPython.display import HTML, Javascript, display
+from io import StringIO
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
-from io import StringIO
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
 
 from mathics3_jupyter_notebook.formatter import format_output
 
@@ -112,6 +116,49 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
+    def _display_python_input(self, python_code: str) -> None:
+        """
+        Display the Python input code with syntax highlighting in the input area.
+        """
+        # Use Pygments to highlight the input code
+        formatter = HtmlFormatter(style="default", noclasses=True)
+        highlighted = highlight(python_code, PythonLexer(), formatter)
+
+        # Send as display_data to show in the input area
+        self.send_response(
+            self.iopub_socket,
+            "display_data",
+            {
+                "data": {
+                    "text/html": f'<div style="text-align: left; background-color: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 10px;"><strong>Python Input:</strong><div style="margin-top: 5px;">{highlighted}</div></div>',
+                    "text/plain": python_code,
+                },
+                "metadata": {},
+            },
+        )
+
+    def _format_python_output(self, output_text: str) -> None:
+        """
+        Format and colorize Python output using Pygments and send to notebook.
+        """
+        # Use Pygments to highlight the output as Python code
+        formatter = HtmlFormatter(style="default", noclasses=True)
+        highlighted = highlight(output_text, PythonLexer(), formatter)
+
+        # Send as HTML with syntax highlighting
+        self.send_response(
+            self.iopub_socket,
+            "execute_result",
+            {
+                "execution_count": self.execution_count,
+                "data": {
+                    "text/html": f'<div style="text-align: left;">{highlighted}</div>',
+                    "text/plain": output_text,
+                },
+                "metadata": {},
+            },
+        )
+
     def _handle_python_magic(self, code: str) -> bool:
         """
         Handle %python magic command. Returns True if handled, False otherwise.
@@ -120,6 +167,10 @@ class Mathics3Kernel(Kernel):
         python_match = re.match(r"%python\s+(.*)", code.strip(), re.DOTALL)
         if python_match:
             python_code = python_match.group(1)
+
+            # Display the Python input with syntax highlighting
+            self._display_python_input(python_code)
+
             try:
                 # Capture stdout during execution
                 old_stdout = sys.stdout
@@ -142,11 +193,9 @@ class Mathics3Kernel(Kernel):
                             {"name": "stdout", "text": output},
                         )
                     elif result is not None:
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {"name": "stdout", "text": str(result) + "\n"},
-                        )
+                        # Use pprint for pretty-printed output
+                        formatted_output = pprint.pformat(result)
+                        self._format_python_output(formatted_output)
                 except SyntaxError:
                     # If eval fails, try exec for multi-line statements
                     output = sys.stdout.getvalue()
