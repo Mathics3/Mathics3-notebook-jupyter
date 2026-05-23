@@ -11,6 +11,7 @@ from IPython.display import HTML, Javascript, display
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
+from io import StringIO
 
 from mathics3_jupyter_notebook.formatter import format_output
 
@@ -41,6 +42,8 @@ class Mathics3Kernel(Kernel):
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
+        # Dictionary to store Python variables across %python invocations
+        self.python_namespace = {}
 
         # Inject custom CSS for left-aligned math output
         display(
@@ -109,23 +112,65 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
-    def _handle_python_magic(self, line: str) -> bool:
-        """Handle %python magic command. Returns True if handled, False otherwise."""
-        python_match = re.match(r"%python\s+(.*)", line.strip())
+    def _handle_python_magic(self, code: str) -> bool:
+        """
+        Handle %python magic command. Returns True if handled, False otherwise.
+        Supports both single-line expressions and multi-line statements.
+        """
+        python_match = re.match(r"%python\s+(.*)", code.strip(), re.DOTALL)
         if python_match:
-            code = python_match.group(1)
+            python_code = python_match.group(1)
             try:
-                # Execute the Python code
-                result = eval(code)
-                # Send output back to notebook
-                output_text = str(result)
-                self.send_response(
-                    self.iopub_socket,
-                    "stream",
-                    {"name": "stdout", "text": output_text + "\n"},
-                )
+                # Capture stdout during execution
+                old_stdout = sys.stdout
+                sys.stdout = StringIO()
+
+                try:
+                    # Try to evaluate as an expression first
+                    result = eval(
+                        python_code,
+                        {"__builtins__": __builtins__},
+                        self.python_namespace,
+                    )
+                    output = sys.stdout.getvalue()
+
+                    # If there's captured output, use it; otherwise use the result
+                    if output:
+                        self.send_response(
+                            self.iopub_socket,
+                            "stream",
+                            {"name": "stdout", "text": output},
+                        )
+                    elif result is not None:
+                        self.send_response(
+                            self.iopub_socket,
+                            "stream",
+                            {"name": "stdout", "text": str(result) + "\n"},
+                        )
+                except SyntaxError:
+                    # If eval fails, try exec for multi-line statements
+                    output = sys.stdout.getvalue()
+                    sys.stdout = StringIO()  # Reset StringIO for exec
+
+                    exec(
+                        python_code,
+                        {"__builtins__": __builtins__},
+                        self.python_namespace,
+                    )
+                    output += sys.stdout.getvalue()
+
+                    if output:
+                        self.send_response(
+                            self.iopub_socket,
+                            "stream",
+                            {"name": "stdout", "text": output},
+                        )
+                finally:
+                    sys.stdout = old_stdout
+
                 return True
             except Exception as e:
+                sys.stdout = old_stdout
                 self.send_response(
                     self.iopub_socket,
                     "stream",
