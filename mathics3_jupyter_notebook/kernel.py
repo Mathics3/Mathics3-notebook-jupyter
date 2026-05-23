@@ -1,4 +1,15 @@
+"""
+Jupyter kernel for Mathics3.
+"""
+
+import subprocess
+import sys
+
 from ipykernel.kernelbase import Kernel
+from IPython.core.interactiveshell import InteractiveShell
+
+# Add to mathics3_jupyter_notebook/kernel.py
+from IPython.core.magic import Magics, line_magic, magics_class
 from IPython.display import Javascript, display
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
@@ -7,6 +18,20 @@ from mathics.session import MathicsSession
 from mathics3_jupyter_notebook.formatter import format_output
 
 import_and_load_builtins()
+
+
+@magics_class
+class PipMagic(Magics):
+    @line_magic
+    def pip(self, line):
+        """Support for %pip magic command"""
+        subprocess.check_call([sys.executable, "-m", "pip"] + line.split())
+        return None
+
+
+def load_ipython_extension(ipython: InteractiveShell):
+    """Load the pip magic when %load_ext is called"""
+    ipython.register_magics(PipMagic)
 
 
 class Mathics3Kernel(Kernel):
