@@ -2,6 +2,22 @@
 
 This provides a kernel for Mathics3 inside Jupyter.
 
+## Using
+
+After a Mathics3 Jupyter kernel is loaded, you can enter Mathics3 command and you will
+get the results evaluated and displayed.
+
+There are two "magic" commands available, `%pip` and `%python`.
+
+### `%pip`
+
+The `%pip` command allows you run Python "pip" commands to see or install what Python packages.
+
+
+### `%python`
+
+The `%python` command allows you to run Python statements or evaluate python expressions, rather than Mathics3 expressions or statements.
+
 ## Building
 
 Install all of the prerequisites:
