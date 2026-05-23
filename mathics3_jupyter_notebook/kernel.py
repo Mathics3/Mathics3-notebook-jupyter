@@ -62,6 +62,7 @@ class Mathics3Kernel(Kernel):
                 """
             )
         )
+
         display(
             Javascript(
                 """
@@ -108,6 +109,34 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
+    def _handle_python_magic(self, line: str) -> bool:
+        """Handle %python magic command. Returns True if handled, False otherwise."""
+        python_match = re.match(r"%python\s+(.*)", line.strip())
+        if python_match:
+            code = python_match.group(1)
+            try:
+                # Execute the Python code
+                result = eval(code)
+                # Send output back to notebook
+                output_text = str(result)
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {"name": "stdout", "text": output_text + "\n"},
+                )
+                return True
+            except Exception as e:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {
+                        "name": "stderr",
+                        "text": f"Error running Python: {type(e).__name__}: {str(e)}\n",
+                    },
+                )
+                return True
+        return False
+
     def do_execute(
         self,
         code: str,
@@ -137,6 +166,14 @@ class Mathics3Kernel(Kernel):
 
         # Handle magic commands
         if self._handle_pip_magic(code):
+            return {
+                "status": "ok",
+                "execution_count": self.execution_count,
+                "payload": [],
+                "user_expressions": {},
+            }
+
+        if self._handle_python_magic(code):
             return {
                 "status": "ok",
                 "execution_count": self.execution_count,
