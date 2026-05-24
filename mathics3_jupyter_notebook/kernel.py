@@ -43,9 +43,11 @@ class Mathics3Kernel(Kernel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
+
         # Dictionary to store Python variables across %python invocations
         self.python_namespace = {}
 
@@ -321,6 +323,7 @@ class Mathics3Kernel(Kernel):
 
                 expr = self.mathics_engine.evaluate(code)
                 evaluation = self.mathics_engine.evaluation
+                evaluation.definitions.set_line_no(self.execution_count + 1)
                 content = format_output(evaluation, expr, self.execution_count)
                 # Send the result back to the Jupyter frontend
                 self.send_response(self.iopub_socket, "execute_result", content)

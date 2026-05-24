@@ -38,6 +38,9 @@ version = "1.0.0"
 [project.optional-dependencies]
 dev = [
     "jupyter-console",
+    "check-jsonschema",
+    "pytest",
+    "pre-commit",
 ]
 
 [project.urls]
