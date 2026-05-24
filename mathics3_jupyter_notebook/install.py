@@ -22,7 +22,15 @@ kernel_json = {
         "{connection_file}",
     ],
     "display_name": DISPLAY_NAME,
-    "language": "mathematica",
+    "language": "wolfram",
+    "metadata": {
+        "language_info": {
+            "name": "wolfram",
+            "codemirror_mode": "gfm",
+            "file_extension": ".wl",
+            "mimetype": "text/x-wolfram",
+        },
+    },
 }
 
 
@@ -55,14 +63,13 @@ def install_my_kernel_spec(user=True, prefix=None):
 
         print(f"Installing Jupyter kernel spec for {DISPLAY_NAME}...")
         try:
-            KernelSpecManager().install_kernel_spec(
+            destination_path = KernelSpecManager().install_kernel_spec(
                 td, KERNEL_NAME, user=user, prefix=prefix
-            )
-            print(
-                "Successfully installed Mathics3 kernel in mathics3-jupyter/kernel.json"
             )
         except Exception as e:
             print(f"Failed to install kernel: {e}")
+        else:
+            print(f"Successfully installed Mathics3 kernel in {destination_path}")
 
 
 def _is_root():
