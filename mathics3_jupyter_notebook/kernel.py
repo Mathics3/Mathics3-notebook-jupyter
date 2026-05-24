@@ -43,11 +43,16 @@ class Mathics3Kernel(Kernel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
         self.mathics_engine = MathicsSession()
+
         # Dictionary to store Python variables across %python invocations
         self.python_namespace = {}
+
+        # Stack to store recent Mathematica outputs for %, %%, %%%
+        self.output_history = []
 
         # Inject custom CSS for left-aligned math output
         display(
@@ -262,6 +267,33 @@ class Mathics3Kernel(Kernel):
                 return True
         return False
 
+    def _substitute_output_references(self, code: str) -> str:
+        """
+        Substitute Mathematica output references (%, %%, %%%) with actual expressions.
+
+        % = previous output (equivalent to Out[-1])
+        %% = second-to-last output (equivalent to Out[-2])
+        %%% = third-to-last output (equivalent to Out[-3])
+        """
+
+        def replace_percent(match):
+            percent_str = match.group(0)
+            count = len(percent_str)
+            # Index into history from the end: % is [-1], %% is [-2], %%% is [-3]
+            history_index = -count
+            if len(self.output_history) >= count:
+                return self.output_history[history_index]
+            return percent_str
+
+        # Match % references (%, %%, %%%) but not magic commands
+        # Use negative lookbehind to avoid matching magic keywords
+        code = re.sub(
+            r"(?<![\w])(%{1,3})(?![\w])",
+            replace_percent,
+            code,
+        )
+        return code
+
     def do_execute(
         self,
         code: str,
@@ -316,13 +348,19 @@ class Mathics3Kernel(Kernel):
 
         if not silent:
             try:
-                # Evaluate the input code using the Mathics3 engine
-                # Mathics3 returns an object that we can convert to a string
+                # Substitute output references (%, %%, %%) with actual expressions
+                processed_code = self._substitute_output_references(code)
 
-                expr = self.mathics_engine.evaluate(code)
+                # Evaluate the input code using the Mathics3 engine
+                expr = self.mathics_engine.evaluate(processed_code)
                 evaluation = self.mathics_engine.evaluation
+                evaluation.definitions.set_line_no(self.execution_count)
                 content = format_output(evaluation, expr, self.execution_count)
                 # Send the result back to the Jupyter frontend
+
+                # Store the output as a string representation for history
+                expr_str = str(expr)
+                self.output_history.append(expr_str)
                 self.send_response(self.iopub_socket, "execute_result", content)
 
             except Exception as e:
