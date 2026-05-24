@@ -2,6 +2,8 @@
 Jupyter Mathics3 Formatter module
 """
 
+import base64
+import io
 import logging
 from typing import Callable
 
@@ -25,6 +27,8 @@ from mathics.core.systemsymbols import (
     SymbolString,
     SymbolTeXForm,
 )
+
+import matplotlib.pyplot as plt
 
 # from mathics.eval.image import eval_ImageExport
 from mathics.format.box import format_element
@@ -92,7 +96,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
 
         if isinstance(boxed, String) and boxed.value.startswith('"<math'):
             box_str = boxed.value[1:-1]
-            logger.warning(f"MathML format_mathml 1: {box_str}")
+            # logger.warning(f"MathML format_mathml 1: {box_str}")
             html_str = _wrap_mathml_for_display(box_str)
             return build_mime_content(mime_content, "text/html", html_str)
 
@@ -108,7 +112,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         """
         math_html = math_html.replace("<math", "<math", 1)
         math_html = math_html.replace('display="block"', "")
-        logger.warning(f"MathML format_math: {math_html}")
+        # logger.warning(f"MathML format_math: {math_html}")
 
         # Wrap in a div for left alignment
         return f'<div style="text-align: left; overflow-x: auto;">{math_html}</div>'
@@ -140,6 +144,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         return build_mime_content(mime_content, "text/html", "<i>$Failed</i>")
 
     expr_head = expr.get_head()
+    # logger.warning(f"expr: {expr}")
 
     if expr_head is SymbolMathMLForm:
         return format_mathml(expr, evaluation, mime_content)
@@ -170,13 +175,27 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, form)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
-    elif expr_head in (SymbolGraphics, SymbolImage, SymbolPlot):
+    elif expr_head in (SymbolGraphics, SymbolPlot):
         svg_expr = Expression(SymbolExportString, expr, StringSVG)
         svg_str = svg_expr.evaluate(evaluation).to_python(string_quotes=False)
         return build_mime_content(mime_content, "image/svg+xml", svg_str)
-    # elif expr_head in (SymbolImage):
-    #     png_data = expr.pil().to_bytes()
-    #     return build_mime_content(mime_content, "image/svg+xml", png_data)
+
+    elif expr_head in (SymbolImage,):
+        # Create an in-memory bytes buffer.
+        # Save the PIL image into the buffer, forcing the PNG format.
+        # Retrieve the raw bytes from the buffer.
+        # Encode the raw bytes into a Base64 string and decode to a UTF-8 string.
+        if hasattr(expr, "pil") and not hasattr(expr, "pillow"):
+            expr.pillow = expr.pil()
+        if hasattr(expr, "pillow"):
+            buffer = io.BytesIO()
+            expr.pillow.save(buffer, format="PNG")
+            png_bytes = buffer.getvalue()
+            base64_encoded = base64.b64encode(png_bytes).decode("utf-8")
+            # logger.warning(f"SymbolImage: {base64_encoded}")
+
+            return build_mime_content(mime_content, "image/png", base64_encoded)
+        format_text(expr, evaluation, mime_content)
 
     return format_mathml(expr, evaluation, mime_content)
     # return format_text(expr, evaluation, mime_content)
