@@ -1,4 +1,4 @@
-.PHONY: all generate-config notebook lab register-kernel
+.PHONY: all generate-config notebook lab list-kernels register-kernel
 
 PYTHON3 ?= python3
 GIT2CL ?= admin-tools/git2cl
@@ -14,6 +14,9 @@ console:
 lab:
 	jupyter lab
 
+#: List all of the Jupyter Kernels installed
+list-kernels:
+	jupyter kernelspec list
 
 #: Run Jupyter notebook with this Jupyter kernel
 notebook:
