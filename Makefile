@@ -23,7 +23,7 @@ notebook:
 register-kernel:
 	$(PYTHON3) -m mathics3_jupyter_notebook.install
 
-#: Gerate a Jupyter config to note where Jupyter notebooks should be saved
+#: Generate a Jupyter config to note where Jupyter notebooks should be saved
 generate-config:
 	jupyter server --generate-config
 
