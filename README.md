@@ -1,22 +1,21 @@
-# Mathics3 Jupyter notebook
+# Mathics3 Jupyter Kernel
 
-This provides a kernel for Mathics3 inside Jupyter.
+This provides a Jupyter Kernel for running Mathics3. In contrast to code in [Mathics3-notebook-frontends](https://github.com/Mathics3/Mathics3-notebook-frontends), this is a full Kernel rather than an extension to be loaded on top of Python 3 `ipykernel`.
 
 ## Using
 
-After a Mathics3 Jupyter kernel is loaded, you can enter Mathics3 command and you will
-get the results evaluated and displayed.
+After this Mathics3 Jupyter kernel is loaded, you can enter Mathics3 commands, and you will get the results evaluated and displayed.
 
 There are two "magic" commands available, `%pip` and `%python`.
 
 ### `%pip`
 
-The `%pip` command allows you run Python "pip" commands to see or install what Python packages.
+The `%pip` command allows you to run Python "pip" commands or to see information on installed Python packages.
 
 
 ### `%python`
 
-The `%python` command allows you to run Python statements or evaluate python expressions, rather than Mathics3 expressions or statements.
+The `%python` command allows you to run Python statements or evaluate Python expressions, rather than Mathics3 expressions or statements.
 
 ## Building
 
@@ -26,7 +25,7 @@ Install all of the prerequisites:
 $ pip install -e .
 ```
 
-Register the Mathics3 kernel for Jupyter vai via JSON file `mathics3-jupyter/kernel.json`.
+Register the Mathics3 kernel for Jupyter via the JSON file `mathics3-jupyter/kernel.json`.
 
 ```console
 $ python3 -m mathics3_jupyter_notebook.install
@@ -34,7 +33,7 @@ $ python3 -m mathics3_jupyter_notebook.install
 
 This needs to be done only once.
 
-To see that this has been installed run:
+To see that this has been installed, run:
 
 ```console
 $ jupyter kernelspec list
