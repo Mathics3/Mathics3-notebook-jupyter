@@ -2,6 +2,7 @@
 Jupyter kernel for Mathics3.
 """
 
+import ast
 import pprint
 import re
 import subprocess
@@ -46,7 +47,7 @@ class Mathics3Kernel(Kernel):
 
         # Do not store this 'self.session'.
         # ipykernel uses 'self.session' for its own messaging system.
-        self.mathics_engine = MathicsSession()
+        self.mathics3_engine = MathicsSession()
 
         # Dictionary to store Python variables across %python invocations
         self.python_namespace = {}
@@ -83,71 +84,6 @@ class Mathics3Kernel(Kernel):
     """
             )
         )
-
-    def _handle_pip_magic(self, line: str) -> bool:
-        """Handle %pip magic command. Returns True if handled, False otherwise."""
-        pip_match = re.match(r"%pip\s+(.*)", line.strip())
-        if pip_match:
-            args = pip_match.group(1)
-            try:
-                result = subprocess.run(
-                    [sys.executable, "-m", "pip"] + args.split(),
-                    capture_output=True,
-                    text=True,
-                )
-                # Send output back to notebook
-                if result.stdout:
-                    self.send_response(
-                        self.iopub_socket,
-                        "stream",
-                        {"name": "stdout", "text": result.stdout},
-                    )
-                if result.stderr:
-                    self.send_response(
-                        self.iopub_socket,
-                        "stream",
-                        {"name": "stderr", "text": result.stderr},
-                    )
-                return True
-            except Exception as e:
-                self.send_response(
-                    self.iopub_socket,
-                    "stream",
-                    {"name": "stderr", "text": f"Error running pip: {str(e)}\n"},
-                )
-                return True
-        return False
-
-    def _handle_markdown_magic(self, code: str) -> bool:
-        """Handle %markdown magic command. Returns True if handled, False otherwise."""
-        markdown_match = re.match(r"%markdown\s+(.*)", code.strip(), re.DOTALL)
-        if markdown_match:
-            markdown_content = markdown_match.group(1)
-            try:
-                # Send Markdown content as display_data
-                self.send_response(
-                    self.iopub_socket,
-                    "display_data",
-                    {
-                        "data": {
-                            "text/markdown": markdown_content,
-                            "text/plain": markdown_content,
-                        },
-                        "metadata": {},
-                    },
-                )
-                return True
-            except Exception as e:
-                self.send_response(
-                    self.iopub_socket,
-                    "stream",
-                    {
-                        "name": "stderr",
-                        "text": f"Error rendering Markdown: {type(e).__name__}: {str(e)}\n",
-                    },
-                )
-                return True
-        return False
 
     def _display_python_input(self, python_code: str) -> None:
         """
@@ -192,12 +128,83 @@ class Mathics3Kernel(Kernel):
             },
         )
 
+    def _handle_markdown_magic(self, code: str) -> bool:
+        """Handle %m3md magic command. Returns True if handled, False otherwise."""
+        markdown_match = re.match(r"%m3md\s+(.*)", code.strip(), re.DOTALL)
+        if markdown_match:
+            markdown_content = markdown_match.group(1)
+            try:
+                # Send Markdown content as display_data
+                self.send_response(
+                    self.iopub_socket,
+                    "display_data",
+                    {
+                        "data": {
+                            "text/markdown": markdown_content,
+                            "text/plain": markdown_content,
+                        },
+                        "metadata": {},
+                    },
+                )
+                return True
+            except Exception as e:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {
+                        "name": "stderr",
+                        "text": f"Error rendering Markdown: {type(e).__name__}: {str(e)}\n",
+                    },
+                )
+                return True
+        return False
+
+    def _handle_pip_magic(self, line: str) -> bool:
+        """Handle %pip magic command. Returns True if handled, False otherwise.
+
+        Usage:
+            %pip install package_name
+            %pip list
+            %pip show package_name
+        """
+        pip_match = re.match(r"%pip\s+(.*)", line.strip())
+        if pip_match:
+            args = pip_match.group(1)
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip"] + args.split(),
+                    capture_output=True,
+                    text=True,
+                )
+                # Send output back to notebook
+                if result.stdout:
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {"name": "stdout", "text": result.stdout},
+                    )
+                if result.stderr:
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {"name": "stderr", "text": result.stderr},
+                    )
+                return True
+            except Exception as e:
+                self.send_response(
+                    self.iopub_socket,
+                    "stream",
+                    {"name": "stderr", "text": f"Error running pip: {str(e)}\n"},
+                )
+                return True
+        return False
+
     def _handle_python_magic(self, code: str) -> bool:
         """
-        Handle %python magic command. Returns True if handled, False otherwise.
+        Handle %python or %py magic command. Returns True if handled, False otherwise.
         Supports both single-line expressions and multi-line statements.
         """
-        python_match = re.match(r"%python\s+(.*)", code.strip(), re.DOTALL)
+        python_match = re.match(r"%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
         if python_match:
             python_code = python_match.group(1)
 
@@ -209,48 +216,70 @@ class Mathics3Kernel(Kernel):
                 old_stdout = sys.stdout
                 sys.stdout = StringIO()
 
-                try:
-                    # Try to evaluate as an expression first
-                    result = eval(
-                        python_code,
-                        {"__builtins__": __builtins__},
-                        self.python_namespace,
+                result = None
+
+                # Parse the python_code into an Abstract Syntax Tree (AST)
+                parsed_ast = ast.parse(python_code)
+
+                if not parsed_ast.body:
+                    # Compiling and evaluating will probably fail,
+                    # but we'll try it anyway.
+                    eval_mode = "exec"
+                    pseudo_filename = "<mathics-python-exec>"
+
+                else:
+
+                    globals_dict = {
+                        "__builtins__": __builtins__,
+                        "session": self.mathics3_engine,
+                    }
+
+                    # Check if the last statement in the block is an expression.
+                    last_node = parsed_ast.body[-1]
+
+                    if isinstance(last_node, ast.Expr):
+                        # Separate the previous statements from the final expression.
+                        statements = parsed_ast.body[:-1]
+                        expression = last_node.value
+
+                        # Execute all statements preceding the final expression.
+                        if statements:
+                            exec_ast = ast.Module(body=statements, type_ignores=[])
+                            exec(
+                                compile(
+                                    exec_ast,
+                                    filename="<magic-python-exec>",
+                                    mode="exec",
+                                ),
+                                globals_dict,
+                                self.python_namespace,
+                            )
+
+                        # Evaluate the final expression and return its value.
+                        eval_ast = ast.Expression(body=expression)
+                        eval_mode = "eval"
+                        pseudo_filename = "<magics-python-eval-last>"
+                    else:
+                        # If the last statement isn't an expression,
+                        # execute everything as statements.
+                        eval_ast = parsed_ast
+                        eval_mode = "exec"
+                        pseudo_filename = "<mathics-python-exec>"
+
+                result = eval(
+                    compile(eval_ast, filename=pseudo_filename, mode=eval_mode),
+                    globals_dict,
+                    self.python_namespace,
+                )
+
+                output = sys.stdout.getvalue()
+                if output:
+                    self.send_response(
+                        self.iopub_socket,
+                        "stream",
+                        {"name": "stdout", "text": output},
                     )
-                    output = sys.stdout.getvalue()
 
-                    # If there's captured output, use it; otherwise use the result
-                    if output:
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {"name": "stdout", "text": output},
-                        )
-                    elif result is not None:
-                        # Use pprint for pretty-printed output
-                        formatted_output = pprint.pformat(result)
-                        self._format_python_output(formatted_output)
-                except SyntaxError:
-                    # If eval fails, try exec for multi-line statements
-                    output = sys.stdout.getvalue()
-                    sys.stdout = StringIO()  # Reset StringIO for exec
-
-                    exec(
-                        python_code,
-                        {"__builtins__": __builtins__},
-                        self.python_namespace,
-                    )
-                    output += sys.stdout.getvalue()
-
-                    if output:
-                        self.send_response(
-                            self.iopub_socket,
-                            "stream",
-                            {"name": "stdout", "text": output},
-                        )
-                finally:
-                    sys.stdout = old_stdout
-
-                return True
             except Exception as e:
                 sys.stdout = old_stdout
                 self.send_response(
@@ -258,10 +287,20 @@ class Mathics3Kernel(Kernel):
                     "stream",
                     {
                         "name": "stderr",
-                        "text": f"Error running Python: {type(e).__name__}: {str(e)}\n",
+                        "text": f"Error execution Python magic: {type(e).__name__}: {str(e)}\n",
                     },
                 )
                 return True
+
+            finally:
+                sys.stdout = old_stdout
+
+                if result is not None:
+                    # Use pprint for pretty-printed output
+                    formatted_output = pprint.pformat(result)
+                    self._format_python_output(formatted_output)
+                return True
+
         return False
 
     def do_execute(
@@ -321,8 +360,8 @@ class Mathics3Kernel(Kernel):
                 # Evaluate the input code using the Mathics3 engine
                 # Mathics3 returns an object that we can convert to a string
 
-                expr = self.mathics_engine.evaluate(code)
-                evaluation = self.mathics_engine.evaluation
+                expr = self.mathics3_engine.evaluate(code)
+                evaluation = self.mathics3_engine.evaluation
                 evaluation.definitions.set_line_no(self.execution_count + 1)
                 content = format_output(evaluation, expr, self.execution_count)
                 # Send the result back to the Jupyter frontend
