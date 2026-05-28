@@ -13,9 +13,11 @@ There are two "magic" commands available, `%pip` and `%python`.
 The `%pip` command allows you to run Python "pip" commands or to see information on installed Python packages.
 
 
-### `%python`
+### `%python` or `%py`
 
 The `%python` command allows you to run Python statements or evaluate Python expressions, rather than Mathics3 expressions or statements.
+
+A special variable `session` is defined so that you have access to the underlying Python session.
 
 ## Building
 
