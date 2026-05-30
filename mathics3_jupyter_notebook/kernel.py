@@ -51,6 +51,7 @@ class Mathics3Kernel(Kernel):
 
         # Dictionary to store Python variables across %python invocations
         self.python_namespace = {}
+        self.html_formatter = HtmlFormatter(style="default", noclasses=True)
 
         # Inject custom CSS for left-aligned math output
         display(
@@ -90,8 +91,7 @@ class Mathics3Kernel(Kernel):
         Display the Python input code with syntax highlighting in the input area.
         """
         # Use Pygments to highlight the input code
-        formatter = HtmlFormatter(style="default", noclasses=True)
-        highlighted = highlight(python_code, PythonLexer(), formatter)
+        highlighted = highlight(python_code, PythonLexer(), self.html_formatter)
 
         # Send as display_data to show in the input area
         self.send_response(
@@ -111,8 +111,7 @@ class Mathics3Kernel(Kernel):
         Format and colorize Python output using Pygments and send to notebook.
         """
         # Use Pygments to highlight the output as Python code
-        formatter = HtmlFormatter(style="default", noclasses=True)
-        highlighted = highlight(output_text, PythonLexer(), formatter)
+        highlighted = highlight(output_text, PythonLexer(), self.html_formatter)
 
         # Send as HTML with syntax highlighting
         self.send_response(
@@ -167,6 +166,7 @@ class Mathics3Kernel(Kernel):
             %pip list
             %pip show package_name
         """
+        success = False
         pip_match = re.match(r"%pip\s+(.*)", line.strip())
         if pip_match:
             args = pip_match.group(1)
@@ -189,15 +189,15 @@ class Mathics3Kernel(Kernel):
                         "stream",
                         {"name": "stderr", "text": result.stderr},
                     )
-                return True
+                success = True
             except Exception as e:
                 self.send_response(
                     self.iopub_socket,
                     "stream",
                     {"name": "stderr", "text": f"Error running pip: {str(e)}\n"},
                 )
-                return True
-        return False
+                success = True
+        return success
 
     def _handle_python_magic(self, code: str) -> bool:
         """
@@ -205,6 +205,8 @@ class Mathics3Kernel(Kernel):
         Supports both single-line expressions and multi-line statements.
         """
         python_match = re.match(r"%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
+        success = False
+
         if python_match:
             python_code = python_match.group(1)
 
@@ -279,6 +281,7 @@ class Mathics3Kernel(Kernel):
                         "stream",
                         {"name": "stdout", "text": output},
                     )
+                success = True
 
             except Exception as e:
                 sys.stdout = old_stdout
@@ -299,9 +302,9 @@ class Mathics3Kernel(Kernel):
                     # Use pprint for pretty-printed output
                     formatted_output = pprint.pformat(result)
                     self._format_python_output(formatted_output)
-                return True
+                success = True
 
-        return False
+        return success
 
     def do_execute(
         self,
@@ -381,6 +384,11 @@ class Mathics3Kernel(Kernel):
             "payload": [],
             "user_expressions": {},
         }
+
+    def evaluate_expression(self, expr_str: str):
+        expr = self.mathics3_engine.evaluate(expr_str)
+        evaluation = self.mathics3_engine.evaluation
+        return format_output(evaluation, expr, self.execution_count)
 
 
 if __name__ == "__main__":
