@@ -3,6 +3,8 @@
 PYTHON3 ?= python3
 GIT2CL ?= admin-tools/git2cl
 
+# Default options
+o = --notebook-dir=$(HOME)/Jupyter-notebooks
 
 all: notebook
 
@@ -12,7 +14,7 @@ console:
 
 #: Run Jupyter lab with this Jupyter kernel
 lab:
-	jupyter lab
+	jupyter lab $o
 
 #: List all of the Jupyter Kernels installed
 list-kernels:
@@ -20,7 +22,7 @@ list-kernels:
 
 #: Run Jupyter notebook with this Jupyter kernel
 notebook:
-	jupyter notebook --notebook-dir=$(HOME)/Jupyter-notebooks
+	jupyter notebook $o
 
 #: Register a mathics3 Jupyter kernel
 register-kernel:

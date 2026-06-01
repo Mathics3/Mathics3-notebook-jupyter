@@ -47,6 +47,9 @@ dev = [
 Homepage = "https://mathics.org/"
 Downloads = "https://github.com/Mathics3/Mathics3-notebook-jupyter/releases"
 
+[project.scripts]
+install-mathics3-jupyter-kernel = "mathics3_jupyter_notebook.install_kernel:main"
+
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 
