@@ -78,11 +78,69 @@ class Mathics3Kernel(Kernel):
             Javascript(
                 """
             var script = document.createElement('script');
+            console.log('Loading mathics-threejs-backend');
             script.type = 'text/javascript';
             script.src = 'https://cdn.jsdelivr.net/npm/@mathicsorg/mathics-threejs-backend';
             document.head.appendChild(script);
-            console.log('Loading mathics-threejs-backend');
-    """
+            console.log("Initializing Mathics3 Python Dropdown Extension...");
+
+            function setupPythonDropdown() {
+                // Target the classic Jupyter Notebook cell-type dropdown
+                var cell_type_select = document.querySelector("#cell_type") || document.querySelector(".cell-type-select select");
+                if (!cell_type_select) {
+                    // If UI hasn't fully rendered yet, retry shortly
+                    setTimeout(setupPythonDropdown, 1000);
+                    return;
+                }
+
+                // Check if "Python" option already exists to prevent duplicate insertion
+                var exists = Array.from(cell_type_select.options).some(opt => opt.value === 'python');
+                if (!exists) {
+                    var pythonOption = document.createElement("option");
+                    pythonOption.value = "python";
+                    pythonOption.text = "Python";
+                    cell_type_select.add(pythonOption);
+                }
+
+                // Intercept dropdown selection changes
+                cell_type_select.addEventListener("change", function(e) {
+                    if (this.value === "python") {
+                        var cell = Jupyter.notebook.get_selected_cell();
+
+                        # Convert to standard code cell under the hood so Jupyter doesn't crash
+                        cell.change_to_code();
+
+                        # Set a custom metadata flag so the UI remembers this is a Python cell
+                        cell.metadata.custom_lang = "python";
+
+                        # Change visual styling or add a watermark placeholder if desired
+                        if (!cell.get_text().startsWith("%python")) {
+                            cell.set_text("%python\\n" + cell.get_text());
+                        }
+                    }
+                });
+
+                // Listen for cell execution events to clean up or auto-inject %python ahead of transmission
+                if (window.Jupyter && Jupyter.notebook) {
+                    Jupyter.notebook.events.on('execute.Cell', function(evt, data) {
+                        var cell = data.cell;
+                        if (cell.metadata.custom_lang === "python") {
+                            var text = cell.get_text();
+                            if (!text.startsWith("%python")) {
+                                cell.set_text("%python\\n" + text);
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Run setup once DOM and Jupyter objects are fully active
+            if (document.readyState === "complete") {
+                setupPythonDropdown();
+            } else {
+                window.addEventListener("load", setupPythonDropdown);
+            }
+            """
             )
         )
 
@@ -127,11 +185,11 @@ class Mathics3Kernel(Kernel):
             },
         )
 
-    def _handle_markdown_magic(self, code: str) -> bool:
-        """Handle %m3md magic command. Returns True if handled, False otherwise."""
-        markdown_match = re.match(r"%m3md\s+(.*)", code.strip(), re.DOTALL)
-        if markdown_match:
-            markdown_content = markdown_match.group(1)
+    def _handle_html_cell_magic(self, code: str) -> bool:
+        """Handle %%html magic command. Returns True if handled, False otherwise."""
+        html_match = re.match(r"%%html\s+(.*)", code.strip(), re.DOTALL)
+        if html_match:
+            html_content = html_match.group(1)
             try:
                 # Send Markdown content as display_data
                 self.send_response(
@@ -139,8 +197,8 @@ class Mathics3Kernel(Kernel):
                     "display_data",
                     {
                         "data": {
-                            "text/markdown": markdown_content,
-                            "text/plain": markdown_content,
+                            "text/html": html_content,
+                            "text/plain": code,
                         },
                         "metadata": {},
                     },
@@ -152,22 +210,22 @@ class Mathics3Kernel(Kernel):
                     "stream",
                     {
                         "name": "stderr",
-                        "text": f"Error rendering Markdown: {type(e).__name__}: {str(e)}\n",
+                        "text": f"Error rendering HTML: {type(e).__name__}: {str(e)}\n",
                     },
                 )
                 return True
         return False
 
-    def _handle_pip_magic(self, line: str) -> bool:
-        """Handle %pip magic command. Returns True if handled, False otherwise.
+    def _handle_pip_cell_magic(self, line: str) -> bool:
+        """Handle %%pip magic command. Returns True if handled, False otherwise.
 
         Usage:
-            %pip install package_name
-            %pip list
-            %pip show package_name
+            %%pip install package_name
+            %%pip list
+            %%pip show package_name
         """
         success = False
-        pip_match = re.match(r"%pip\s+(.*)", line.strip())
+        pip_match = re.match(r"%%pip\s+(.*)", line.strip())
         if pip_match:
             args = pip_match.group(1)
             try:
@@ -201,10 +259,10 @@ class Mathics3Kernel(Kernel):
 
     def _handle_python_magic(self, code: str) -> bool:
         """
-        Handle %python or %py magic command. Returns True if handled, False otherwise.
+        Handle %%python or %%py magic command. Returns True if handled, False otherwise.
         Supports both single-line expressions and multi-line statements.
         """
-        python_match = re.match(r"%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
+        python_match = re.match(r"%%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
         success = False
 
         if python_match:
@@ -213,28 +271,27 @@ class Mathics3Kernel(Kernel):
             # Display the Python input with syntax highlighting
             self._display_python_input(python_code)
 
+            old_stdout = sys.stdout
+            result = None
             try:
                 # Capture stdout during execution
-                old_stdout = sys.stdout
                 sys.stdout = StringIO()
-
-                result = None
 
                 # Parse the python_code into an Abstract Syntax Tree (AST)
                 parsed_ast = ast.parse(python_code)
+                globals_dict = {
+                    "__builtins__": __builtins__,
+                    "session": self.mathics3_engine,
+                }
 
                 if not parsed_ast.body:
                     # Compiling and evaluating will probably fail,
                     # but we'll try it anyway.
                     eval_mode = "exec"
                     pseudo_filename = "<mathics-python-exec>"
+                    eval_ast = parsed_ast
 
                 else:
-
-                    globals_dict = {
-                        "__builtins__": __builtins__,
-                        "session": self.mathics3_engine,
-                    }
 
                     # Check if the last statement in the block is an expression.
                     last_node = parsed_ast.body[-1]
@@ -333,8 +390,8 @@ class Mathics3Kernel(Kernel):
                 "user_expressions": {},
             }
 
-        # Handle magic commands
-        if self._handle_pip_magic(code):
+        # Handle cell magic commands
+        if self._handle_pip_cell_magic(code):
             return {
                 "status": "ok",
                 "execution_count": self.execution_count,
@@ -342,7 +399,7 @@ class Mathics3Kernel(Kernel):
                 "user_expressions": {},
             }
 
-        if self._handle_markdown_magic(code):
+        if self._handle_html_cell_magic(code):
             return {
                 "status": "ok",
                 "execution_count": self.execution_count,
