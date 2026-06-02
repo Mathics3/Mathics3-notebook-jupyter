@@ -22,7 +22,7 @@ list-kernels:
 
 #: Run Jupyter notebook with this Jupyter kernel
 notebook:
-	jupyter notebook --kernel=mathics3-kernel $o
+	jupyter notebook  $o
 
 #: Register a mathics3 Jupyter kernel
 register-kernel:
