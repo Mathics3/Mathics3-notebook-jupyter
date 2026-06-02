@@ -186,8 +186,8 @@ class Mathics3Kernel(Kernel):
         )
 
     def _handle_html_cell_magic(self, code: str) -> bool:
-        """Handle %%html magic command. Returns True if handled, False otherwise."""
-        html_match = re.match(r"%%html\s+(.*)", code.strip(), re.DOTALL)
+        """Handle %html magic command. Returns True if handled, False otherwise."""
+        html_match = re.match(r"%html\s+(.*)", code.strip(), re.DOTALL)
         if html_match:
             html_content = html_match.group(1)
             try:
@@ -259,10 +259,10 @@ class Mathics3Kernel(Kernel):
 
     def _handle_python_magic(self, code: str) -> bool:
         """
-        Handle %%python or %%py magic command. Returns True if handled, False otherwise.
+        Handle %python or %py magic command. Returns True if handled, False otherwise.
         Supports both single-line expressions and multi-line statements.
         """
-        python_match = re.match(r"%%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
+        python_match = re.match(r"%py(?:thon)?\s+(.*)", code.strip(), re.DOTALL)
         success = False
 
         if python_match:

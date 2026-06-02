@@ -10,7 +10,7 @@ all: notebook
 
 #: Run Jupyter console for debugging problems
 console:
-	jupyter console --kernel=mathics3-jupyter
+	jupyter console --kernel=mathics3-kernel
 
 #: Run Jupyter lab with this Jupyter kernel
 lab:
@@ -22,7 +22,7 @@ list-kernels:
 
 #: Run Jupyter notebook with this Jupyter kernel
 notebook:
-	jupyter notebook $o
+	jupyter notebook --kernel=mathics3-kernel $o
 
 #: Register a mathics3 Jupyter kernel
 register-kernel:
