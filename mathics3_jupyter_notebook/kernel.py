@@ -217,15 +217,15 @@ class Mathics3Kernel(Kernel):
         return False
 
     def _handle_pip_cell_magic(self, line: str) -> bool:
-        """Handle %%pip magic command. Returns True if handled, False otherwise.
+        """Handle %pip magic command. Returns True if handled, False otherwise.
 
         Usage:
-            %%pip install package_name
-            %%pip list
-            %%pip show package_name
+            %pip install package_name
+            %pip list
+            %pip show package_name
         """
         success = False
-        pip_match = re.match(r"%%pip\s+(.*)", line.strip())
+        pip_match = re.match(r"%pip\s+(.*)", line.strip())
         if pip_match:
             args = pip_match.group(1)
             try:
