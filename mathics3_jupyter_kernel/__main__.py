@@ -8,8 +8,12 @@ try:
 except ImportError:
     # Fallback in case the internal structure differs or names are slightly off
     # You may need to adjust this import to match your specific filename (e.g., .kernel_class)
-    print("Error: Could not find Mathics3Kernel in mathics3_jupyter_notebook.kernel", file=sys.stderr)
+    print(
+        "Error: Could not find Mathics3Kernel in mathics3_jupyter_notebook.kernel",
+        file=sys.stderr,
+    )
     sys.exit(1)
+
 
 def main():
     """
@@ -20,5 +24,6 @@ def main():
     # We pass our custom class so it knows how to handle Mathics3 expressions
     IPKernelApp.launch_instance(kernel_class=Mathics3Kernel)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

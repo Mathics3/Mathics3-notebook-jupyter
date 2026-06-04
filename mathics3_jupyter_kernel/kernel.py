@@ -18,7 +18,7 @@ from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
 
-from mathics3_jupyter_notebook.formatter import format_output
+from mathics3_jupyter_kernel.formatter import format_output
 
 import_and_load_builtins()
 
@@ -421,6 +421,7 @@ class Mathics3Kernel(Kernel):
                 # Mathics3 returns an object that we can convert to a string
 
                 expr = self.mathics3_engine.evaluate(code)
+                print(f"XXX mathics3_engine.evaluate({code}) = {expr})")
                 evaluation = self.mathics3_engine.evaluation
                 evaluation.definitions.set_line_no(self.execution_count + 1)
                 content = format_output(evaluation, expr, self.execution_count)

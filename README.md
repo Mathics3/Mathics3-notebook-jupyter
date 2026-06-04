@@ -1,6 +1,6 @@
 # Mathics3 Jupyter Kernel
 
-This provides a Jupyter Kernel for running Mathics3. In contrast to code in [Mathics3-notebook-frontends](https://github.com/Mathics3/Mathics3-notebook-frontends), this is a full Kernel rather than an extension to be loaded on top of Python 3 `ipykernel`.
+This provides a Jupyter Kernel for running Mathics3. In contrast to code in [Mathics3-Frontend-notebooks](https://github.com/Mathics3/Mathics3-Frontend-notebooks), this is a full Kernel rather than an extension to be loaded on top of Python 3 `ipykernel`.
 
 ## Using
 
@@ -30,7 +30,7 @@ $ pip install -e .
 Register the Mathics3 kernel for Jupyter via the JSON file `mathics3-jupyter/kernel.json`.
 
 ```console
-$ python3 -m mathics3_jupyter_notebook.install
+$ python3 -m mathics3_jupyter_kernel.install
 ```
 
 This needs to be done only once.

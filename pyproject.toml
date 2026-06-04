@@ -14,7 +14,7 @@ dependencies = [
     "jupyterlab",
 ]
 license = "GPL-3.0-or-later"
-name = "mathics3_jupyter_notebook"
+name = "mathics3_jupyter_kernel"
 requires-python = ">=3.11"
 maintainers = [
     {name = "Mathics3 Group", email = "mathics-devel@googlegroups.com"},
@@ -33,7 +33,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Software Development :: Interpreters",
 ]
-version = "1.0.0"
+
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
@@ -48,10 +49,13 @@ Homepage = "https://mathics.org/"
 Downloads = "https://github.com/Mathics3/Mathics3-notebook-jupyter/releases"
 
 [project.scripts]
-install-mathics3-jupyter-kernel = "mathics3_jupyter_notebook.install_kernel:main"
+install-mathics3-jupyter-kernel = "mathics3_jupyter_kernel.install_kernel:main"
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 
+[tool.setuptools.dynamic]
+version = {attr = "mathics3_jupyter_kernel.version.__version__"}
+
 [tool.setuptools.packages.find]
-include = ["mathics3_jupyter_notebook"]
+include = ["mathics3_jupyter_kernel"]

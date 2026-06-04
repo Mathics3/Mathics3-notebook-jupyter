@@ -33,7 +33,7 @@ KERNEL_JSON: Final[Dict[str, Any]] = {
     "argv": [
         sys.executable,
         "-m",
-        "mathics3_jupyter_notebook.kernel",  # The module that handles the kernel loop
+        "mathics3_jupyter_kernel.kernel",  # The module that handles the kernel loop
         "-f",
         "{connection_file}",
     ],

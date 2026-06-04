@@ -37,7 +37,7 @@ from mathics.format.box import format_element
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-file_handler = logging.FileHandler("/tmp/jupyter-notebook-formatter.log")
+file_handler = logging.FileHandler("/tmp/jupyter-formatter.log")
 file_handler.setLevel(logging.DEBUG)
 
 # Create formatter

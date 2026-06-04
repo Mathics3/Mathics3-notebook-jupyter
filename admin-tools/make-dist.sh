@@ -15,8 +15,7 @@ if ! source ./pyenv-versions ; then
 fi
 
 cd ..
-# source mathics3_jupyter_notebook/version.py
-__version__=1.0.0
+source mathics3_jupyter_kernel/version.py
 
 echo $__version__
 

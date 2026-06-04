@@ -1,4 +1,4 @@
-.PHONY: all generate-config notebook lab list-kernels register-kernel
+.PHONY: all dist generate-config notebook lab list-kernels register-kernel
 
 PYTHON3 ?= python3
 GIT2CL ?= admin-tools/git2cl
@@ -26,7 +26,7 @@ notebook:
 
 #: Register a mathics3 Jupyter kernel
 register-kernel:
-	$(PYTHON3) -m mathics3_jupyter_notebook.install
+	$(PYTHON3) -m mathics3_jupyter_kernel.install_kernel
 
 #: Generate a Jupyter config to note where Jupyter notebooks should be saved
 generate-config:
