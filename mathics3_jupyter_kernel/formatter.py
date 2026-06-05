@@ -5,10 +5,10 @@ Jupyter Mathics3 Formatter module
 import base64
 import io
 import logging
-from typing import Callable
+from typing import Dict, Final
 
 from mathics.core.atoms import String
-from mathics.core.expression import BoxError, Expression
+from mathics.core.expression import Expression
 from mathics.core.symbols import Symbol
 from mathics.core.systemsymbols import (
     SymbolAborted,
@@ -29,6 +29,21 @@ from mathics.core.systemsymbols import (
 )
 
 import matplotlib.pyplot as plt
+
+# Maps a Form to a kind of html format.
+# text is the usual text-kind of output.
+# LaTeX is handled by MathJaX display mode $$ $$
+# MathML could be tagged differently too.
+FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
+    "System`FullForm": "text",
+    "System`InputForm": "text",
+    # "System`MathMLForm": "MathML",
+    "System`MatrixForm": "MathML",
+    "System`OutputForm": "text",
+    "System`TeXForm": "LaTeX",
+    "System`String": "text",
+}
+
 
 # from mathics.eval.image import eval_ImageExport
 from mathics.format.box import format_element
@@ -63,20 +78,20 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
     :param expr: The expression result to format
     """
 
-    def eval_boxed(result, fn: Callable, obj, **options):
-        try:
-            boxed = fn(evaluation=obj, **options)
-        except BoxError:
-            boxed = None
-            if not hasattr(obj, "seen_box_error"):
-                obj.seen_box_error = True
-                obj.message(
-                    "General",
-                    "notboxes",
-                    Expression(SymbolFullForm, result).evaluate(obj),
-                )
+    # def eval_boxed(result, fn: Callable, obj, **options):
+    #     try:
+    #         boxed = fn(evaluation=obj, **options)
+    #     except BoxError:
+    #         boxed = None
+    #         if not hasattr(obj, "seen_box_error"):
+    #             obj.seen_box_error = True
+    #             obj.message(
+    #                 "General",
+    #                 "notboxes",
+    #                 Expression(SymbolFullForm, result).evaluate(obj),
+    #             )
 
-        return boxed
+    #     return boxed
 
     def build_mime_content(mime_content: dict, mime_type, value) -> dict:
         data = {
@@ -95,7 +110,6 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
 
         if isinstance(boxed, String) and boxed.value.startswith('"<math'):
             box_str = boxed.value[1:-1]
-            # logger.warning(f"MathML format_mathml 1: {box_str}")
             html_str = _wrap_mathml_for_display(box_str)
             return build_mime_content(mime_content, "text/html", html_str)
 
@@ -142,8 +156,23 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
     elif expr is SymbolFailed:
         return build_mime_content(mime_content, "text/html", "<i>$Failed</i>")
 
-    expr_head = expr.get_head()
+    # For some expressions, we want formatting to be different.
+    # In particular for FullForm and InputForm output, we don't want
+    # MathML, we want
+    # plain-ol' text so we can cut and paste that.
+    expr_head = expr.get_head_name()
+    if expr_head in FORM_TO_HTML_TAG_FORMAT:
+        # For these forms, we strip off the outer "Form" part
+        html_tag_format = FORM_TO_HTML_TAG_FORMAT[expr_head]
+    else:
+        html_tag_format = "text"
+
     # logger.warning(f"expr: {expr}")
+
+    # This part is similar to mathics.core.evaluation.format_output().
+    if html_tag_format == "text":
+        boxed = format_element(expr, evaluation, SymbolOutputForm)
+        return build_mime_content(mime_content, "text/plain", boxed.to_text)
 
     if expr_head is SymbolMathMLForm:
         return format_mathml(expr, evaluation, mime_content)
