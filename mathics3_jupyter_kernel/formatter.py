@@ -17,6 +17,7 @@ from mathics.core.systemsymbols import (
     SymbolInterpretationBox,
     SymbolMathMLForm,
     SymbolOutputForm,
+    SymbolPaneBox,
     SymbolStandardForm,
     SymbolTeXForm,
 )
@@ -215,6 +216,16 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         svg_expr = Expression(SymbolExportString, expr, StringSVG)
         svg_str = svg_expr.evaluate(evaluation).to_python(string_quotes=False)
         return build_mime_content(mime_content, "image/svg+xml", svg_str)
+
+    if expr_head in ("System`Graphics3D"):
+        # FIXME:
+        boxed = format_element(expr, evaluation, SymbolMathMLForm)
+        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+            box_str = boxed.elements[0].value[1:-1]
+            # print(f"XXX0 {box_str}")
+            return build_mime_content(mime_content, "text/plain", box_str)
+        # print(f"XXX1: {boxed}")
+        return build_mime_content(mime_content, "text/html", boxed)
 
     if expr_head in ("System`Image",):
         # Create an in-memory bytes buffer.
