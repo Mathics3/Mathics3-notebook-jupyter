@@ -14,21 +14,15 @@ from mathics.core.systemsymbols import (
     SymbolAborted,
     SymbolExportString,
     SymbolFailed,
-    SymbolFullForm,
-    SymbolGraphics,
-    SymbolGraphics3D,
-    SymbolImage,
-    SymbolInputForm,
     SymbolInterpretationBox,
     SymbolMathMLForm,
     SymbolOutputForm,
-    SymbolPlot,
     SymbolStandardForm,
-    SymbolString,
     SymbolTeXForm,
 )
 
-import matplotlib.pyplot as plt
+# from mathics.eval.image import eval_ImageExport
+from mathics.format.box import format_element
 
 # Maps a Form to a kind of html format.
 # text is the usual text-kind of output.
@@ -44,9 +38,6 @@ FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
     "System`String": "text",
 }
 
-
-# from mathics.eval.image import eval_ImageExport
-from mathics.format.box import format_element
 
 # Set up logging to file
 logger = logging.getLogger(__name__)
@@ -116,21 +107,21 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, SymbolStandardForm)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
-    def format_latex(expr, evaluation, mime_content: dict) -> dict:
-        boxed = format_element(expr, evaluation, SymbolMathMLForm)
-        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
-            box_str = boxed.elements[0].value[1:-1]
-            # Wrap MathML for display math with left alignment
-            html_str = _wrap_tex_for_display(box_str)
-            return build_mime_content(mime_content, "text/latex", html_str)
+    # def format_latex(expr, evaluation, mime_content: dict) -> dict:
+    #     boxed = format_element(expr, evaluation, SymbolMathMLForm)
+    #     if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+    #         box_str = boxed.elements[0].value[1:-1]
+    #         # Wrap MathML for display math with left alignment
+    #         html_str = _wrap_tex_for_display(box_str)
+    #         return build_mime_content(mime_content, "text/latex", html_str)
 
-        if isinstance(boxed, String):
-            box_str = boxed.value[1:-1]
-            html_str = _wrap_tex_for_display(box_str)
-            return build_mime_content(mime_content, "text/latex", html_str)
+    #     if isinstance(boxed, String):
+    #         box_str = boxed.value[1:-1]
+    #         html_str = _wrap_tex_for_display(box_str)
+    #         return build_mime_content(mime_content, "text/latex", html_str)
 
-        boxed = format_element(expr, evaluation, SymbolStandardForm)
-        return build_mime_content(mime_content, "text/plain", str(boxed))
+    #     boxed = format_element(expr, evaluation, SymbolStandardForm)
+    #     return build_mime_content(mime_content, "text/plain", str(boxed))
 
     def _wrap_mathml_for_display(math_html: str) -> str:
         """
@@ -160,33 +151,33 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
             mime_content["data"] = data
             return mime_content
 
-    def _wrap_tex_for_display(tex_html: str) -> str:
-        """
-        Wrap MathML in a container for display math (left-aligned, block-level).
+    # def _wrap_tex_for_display(tex_html: str) -> str:
+    #     """
+    #     Wrap MathML in a container for display math (left-aligned, block-level).
 
-        Modifies the <math> element to use and wraps it
-        in a div with left alignment.
-        """
-        # Wrap in a div for left alignment
-        return f'<div style="text-align: left; overflow-x: auto;">{tex_html}</div>'
+    #     Modifies the <math> element to use and wraps it
+    #     in a div with left alignment.
+    #     """
+    #     # Wrap in a div for left alignment
+    #     return f'<div style="text-align: left; overflow-x: auto;">{tex_html}</div>'
 
-        def build_mime_content(
-            mime_content: dict, mime_type, value, align=None
-        ) -> dict:
-            """Build MIME content with optional alignment styling."""
-            # If HTML and alignment specified, wrap in a div with alignment
-            if mime_type == "text/html" and align:
-                value = f'<div style="text-align: {align};">{value}</div>'
+    #     def build_mime_content(
+    #         mime_content: dict, mime_type, value, align=None
+    #     ) -> dict:
+    #         """Build MIME content with optional alignment styling."""
+    #         # If HTML and alignment specified, wrap in a div with alignment
+    #         if mime_type == "text/html" and align:
+    #             value = f'<div style="text-align: {align};">{value}</div>'
 
-            data = {
-                mime_type: value,
-            }
-            mime_content["data"] = data
-            return mime_content
+    #         data = {
+    #             mime_type: value,
+    #         }
+    #         mime_content["data"] = data
+    #         return mime_content
 
-    def format_text(expr, evaluation, mime_content: dict) -> dict:
-        boxed = format_element(expr, evaluation, SymbolStandardForm)
-        return build_mime_content(mime_content, "text/plain", str(boxed))
+    # def format_text(expr, evaluation, mime_content: dict) -> dict:
+    #     boxed = format_element(expr, evaluation, SymbolStandardForm)
+    #     return build_mime_content(mime_content, "text/plain", str(boxed))
 
     # Start with the standard plain text representation
     mime_content = {"execution_count": execution_count, "metadata": {}}
@@ -195,6 +186,8 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         return build_mime_content(mime_content, "text/html", "<i>$Aborted</i>")
     elif expr is SymbolFailed:
         return build_mime_content(mime_content, "text/html", "<i>$Failed</i>")
+
+    # logger.warning(f"expr: {expr}")
 
     # For some expressions, we want formatting to be different.
     # In particular for FullForm and InputForm output, we don't want
@@ -208,7 +201,7 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         html_tag_format = "mathml"
 
     # logger.warning(f"expr: {expr}")
-    print(f"XXX expr: {expr} expr_head: {expr_head}")
+    # print(f"XXX expr: {expr} expr_head: {expr_head}")
 
     # Note: We order tests more general tests at the end.
     if expr_head in ("System`String",):
