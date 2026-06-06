@@ -37,10 +37,10 @@ import matplotlib.pyplot as plt
 FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
     "System`FullForm": "text",
     "System`InputForm": "text",
-    # "System`MathMLForm": "MathML",
+    "System`MathMLForm": "MathML",
     "System`MatrixForm": "MathML",
     "System`OutputForm": "text",
-    "System`TeXForm": "LaTeX",
+    "System`TeXForm": "latex",
     "System`String": "text",
 }
 
@@ -116,6 +116,22 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         boxed = format_element(expr, evaluation, SymbolStandardForm)
         return build_mime_content(mime_content, "text/plain", str(boxed))
 
+    def format_latex(expr, evaluation, mime_content: dict) -> dict:
+        boxed = format_element(expr, evaluation, SymbolMathMLForm)
+        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+            box_str = boxed.elements[0].value[1:-1]
+            # Wrap MathML for display math with left alignment
+            html_str = _wrap_tex_for_display(box_str)
+            return build_mime_content(mime_content, "text/latex", html_str)
+
+        if isinstance(boxed, String):
+            box_str = boxed.value[1:-1]
+            html_str = _wrap_tex_for_display(box_str)
+            return build_mime_content(mime_content, "text/latex", html_str)
+
+        boxed = format_element(expr, evaluation, SymbolStandardForm)
+        return build_mime_content(mime_content, "text/plain", str(boxed))
+
     def _wrap_mathml_for_display(math_html: str) -> str:
         """
         Wrap MathML in a container for display math (left-aligned, block-level).
@@ -129,6 +145,30 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
 
         # Wrap in a div for left alignment
         return f'<div style="text-align: left; overflow-x: auto;">{math_html}</div>'
+
+        def build_mime_content(
+            mime_content: dict, mime_type, value, align=None
+        ) -> dict:
+            """Build MIME content with optional alignment styling."""
+            # If HTML and alignment specified, wrap in a div with alignment
+            if mime_type == "text/html" and align:
+                value = f'<div style="text-align: {align};">{value}</div>'
+
+            data = {
+                mime_type: value,
+            }
+            mime_content["data"] = data
+            return mime_content
+
+    def _wrap_tex_for_display(tex_html: str) -> str:
+        """
+        Wrap MathML in a container for display math (left-aligned, block-level).
+
+        Modifies the <math> element to use and wraps it
+        in a div with left alignment.
+        """
+        # Wrap in a div for left alignment
+        return f'<div style="text-align: left; overflow-x: auto;">{tex_html}</div>'
 
         def build_mime_content(
             mime_content: dict, mime_type, value, align=None
@@ -165,50 +205,21 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         # For these forms, we strip off the outer "Form" part
         html_tag_format = FORM_TO_HTML_TAG_FORMAT[expr_head]
     else:
-        html_tag_format = "text"
+        html_tag_format = "mathml"
 
     # logger.warning(f"expr: {expr}")
+    print(f"XXX expr: {expr} expr_head: {expr_head}")
 
-    # This part is similar to mathics.core.evaluation.format_output().
-    if html_tag_format == "text":
-        boxed = format_element(expr, evaluation, SymbolOutputForm)
-        return build_mime_content(mime_content, "text/plain", boxed.to_text)
-
-    if expr_head is SymbolMathMLForm:
-        return format_mathml(expr, evaluation, mime_content)
-
-    if expr_head is SymbolString:
+    # Note: We order tests more general tests at the end.
+    if expr_head in ("System`String",):
         return build_mime_content(mime_content, "text/plain", f'"{expr.value}"')
 
-    if isinstance(expr, Symbol) and str(expr).startswith("Global`"):
-        return build_mime_content(
-            mime_content, "text/html", f"<i>{expr.short_name}</i>"
-        )
-
-    if expr_head is SymbolTeXForm:
-        boxed = format_element(expr, evaluation, SymbolTeXForm)
-        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
-            box_str = boxed.elements[0].value[1:-1]
-            return build_mime_content(mime_content, "text/latex", f"$${box_str}$$")
-
-        box_str = f"$${boxed._value[1:-1]}$$"
-        return build_mime_content(mime_content, "text/latex", box_str)
-
-    elif (form := expr_head) in (
-        SymbolFullForm,
-        SymbolInputForm,
-        SymbolOutputForm,
-        SymbolStandardForm,
-    ):
-        boxed = format_element(expr, evaluation, form)
-        return build_mime_content(mime_content, "text/plain", str(boxed))
-
-    elif expr_head in (SymbolGraphics, SymbolPlot):
+    if expr_head in ("System`Graphics", "System`Plot"):
         svg_expr = Expression(SymbolExportString, expr, StringSVG)
         svg_str = svg_expr.evaluate(evaluation).to_python(string_quotes=False)
         return build_mime_content(mime_content, "image/svg+xml", svg_str)
 
-    elif expr_head in (SymbolImage,):
+    if expr_head in ("System`Image",):
         # Create an in-memory bytes buffer.
         # Save the PIL image into the buffer, forcing the PNG format.
         # Retrieve the raw bytes from the buffer.
@@ -223,7 +234,45 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
             # logger.warning(f"SymbolImage: {base64_encoded}")
 
             return build_mime_content(mime_content, "image/png", base64_encoded)
-        format_text(expr, evaluation, mime_content)
+
+    if expr_head == "Pymathics`Graph" and hasattr(expr, "G"):
+        from pymathics.graph.format import format_graph, get_svg_graph
+
+        format_graph(expr.G)
+        svg_str = get_svg_graph()
+        return build_mime_content(mime_content, "image/svg+xml", svg_str)
+
+    # This part is similar to mathics.core.evaluation.format_output().
+    if html_tag_format == "text":
+        boxed = format_element(expr, evaluation, SymbolOutputForm)
+        return build_mime_content(mime_content, "text/plain", boxed.to_text)
+
+    if expr_head is SymbolMathMLForm or html_tag_format == "mathml":
+        return format_mathml(expr, evaluation, mime_content)
+
+    if isinstance(expr, Symbol) and str(expr).startswith("Global`"):
+        return build_mime_content(
+            mime_content, "text/html", f"<i>{expr.short_name}</i>"
+        )
+
+    if expr_head is SymbolTeXForm or html_tag_format == "latex":
+        boxed = format_element(expr, evaluation, SymbolTeXForm)
+        if hasattr(boxed, "head") and boxed.head is SymbolInterpretationBox:
+            box_str = f"$${boxed.elements[0].value[1:-1]}$$"
+        else:
+            box_str = f"$${boxed._value[1:-1]}$$"
+
+        return build_mime_content(mime_content, "text/latex", box_str)
+
+    elif expr_head in (
+        "System,`FullForm",
+        "System`InputForm",
+        "System`OutputForm",
+        "System`StandardForm",
+    ):
+        form = Symbol(expr_head)
+        boxed = format_element(expr, evaluation, form)
+        return build_mime_content(mime_content, "text/plain", str(boxed))
 
     return format_mathml(expr, evaluation, mime_content)
     # return format_text(expr, evaluation, mime_content)

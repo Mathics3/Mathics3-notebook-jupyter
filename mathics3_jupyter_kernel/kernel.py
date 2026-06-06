@@ -421,10 +421,18 @@ class Mathics3Kernel(Kernel):
                 # Mathics3 returns an object that we can convert to a string
 
                 expr = self.mathics3_engine.evaluate(code)
-                print(f"XXX mathics3_engine.evaluate({code}) = {expr})")
+                # print(f"XXX mathics3_engine.evaluate({code}) = {expr})")
                 evaluation = self.mathics3_engine.evaluation
                 evaluation.definitions.set_line_no(self.execution_count + 1)
+
+                # print(f"XXX mathics3_engine.evaluate({code}) = {expr})")
+
+                # Code has been evaluated. However we need to format
+                # based on the outer form the Mathics3
+                # Expression. StandardOutput is the default form, but
+                # FORM_TO_HTML_TAG_FORMAT will override this.
                 content = format_output(evaluation, expr, self.execution_count)
+
                 # Send the result back to the Jupyter frontend
                 self.send_response(self.iopub_socket, "execute_result", content)
 
