@@ -4,7 +4,7 @@ This provides a Jupyter Kernel for running Mathics3. In contrast to code in [Mat
 
 ## Using
 
-After this Mathics3 Jupyter kernel is loaded, you can enter Mathics3 commands, and you will get the results evaluated and displayed.
+After the Mathics3 Jupyter kernel is loaded, you can enter Mathics3 commands, and you will get the results evaluated and displayed.
 
 There are two "magic" commands available, `%pip` and `%python`.
 
