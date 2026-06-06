@@ -204,6 +204,10 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
     # print(f"XXX expr: {expr} expr_head: {expr_head}")
 
     # Note: We order tests more general tests at the end.
+    # Note: I (rocky) haven't been able to get this to work using Symbols, e.g.
+    # SymbolString, SymbolGraphics, etc. I don't know why. One handicap is
+    # that not expr.head is not always guarenteed to work. Although, that is
+    # worked around using hasattr(expr, "head"), something more needs to be done.
     if expr_head in ("System`String",):
         return build_mime_content(mime_content, "text/plain", f'"{expr.value}"')
 
