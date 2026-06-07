@@ -32,8 +32,8 @@ from mathics.format.box import format_element
 FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
     "System`FullForm": "text",
     "System`InputForm": "text",
-    "System`MathMLForm": "MathML",
-    "System`MatrixForm": "MathML",
+    "System`MathMLForm": "mathml",
+    "System`MatrixForm": "mathml",
     "System`OutputForm": "text",
     "System`TeXForm": "latex",
     "System`String": "text",
@@ -42,8 +42,6 @@ FORM_TO_HTML_TAG_FORMAT: Final[Dict[str, str]] = {
 
 # Set up logging to file
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 file_handler = logging.FileHandler("/tmp/jupyter-formatter.log")
 file_handler.setLevel(logging.DEBUG)
 
@@ -192,8 +190,8 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
 
     # For some expressions, we want formatting to be different.
     # In particular for FullForm and InputForm output, we don't want
-    # MathML, we want
-    # plain-ol' text so we can cut and paste that.
+    # MathML, we want plain-ol' text so we can cut and paste that.
+
     expr_head = expr.get_head_name()
     if expr_head in FORM_TO_HTML_TAG_FORMAT:
         # For these forms, we strip off the outer "Form" part

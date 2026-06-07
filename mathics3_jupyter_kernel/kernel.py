@@ -14,6 +14,7 @@ from io import StringIO
 from mathics import __version__
 from mathics.core.load_builtin import import_and_load_builtins
 from mathics.session import MathicsSession
+from mathics3_jupyter_kernel import __version__ as kernel_version
 from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
@@ -25,10 +26,13 @@ import_and_load_builtins()
 
 class Mathics3Kernel(Kernel):
     implementation = "Mathics3"
-    implementation_version = "1.0"
+    implementation_version = kernel_version
     language = "mathematica"
-    language_version = "1.0"
+    language_version = __version__
+
+    # banner is used in "jupyter console"
     banner = f"Mathics3 {__version__} Kernel ({implementation_version})- A Mathematica-compatible engine"
+
     help_links = [
         {"text": "Mathics3", "url": "https://mathics.org/"},
         {
@@ -40,6 +44,8 @@ class Mathics3Kernel(Kernel):
         "name": "mathematica",
         "mimetype": "text/x-mathematica",
         "file_extension": ".wl",
+        "pygments_lexer": "mathematica",
+        "codemirror_mode": "mathematica",
     }
 
     def __init__(self, **kwargs):
