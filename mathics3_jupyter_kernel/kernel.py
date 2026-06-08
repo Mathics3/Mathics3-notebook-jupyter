@@ -44,7 +44,7 @@ class Mathics3Kernel(Kernel):
         "name": "mathematica",
         "mimetype": "text/x-mathematica",
         "file_extension": ".wl",
-        "pygments_lexer": "mathematica",
+        "pygments_lexer": "mathics",
         "codemirror_mode": "mathematica",
     }
 

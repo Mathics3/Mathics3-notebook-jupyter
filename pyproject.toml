@@ -12,6 +12,7 @@ dependencies = [
     "mathics3_notebook_frontends >= 1.0.0",
     "jupyter_client",
     "jupyterlab",
+    "Mathics3-pygments",
 ]
 license = "GPL-3.0-or-later"
 name = "mathics3_jupyter_kernel"
