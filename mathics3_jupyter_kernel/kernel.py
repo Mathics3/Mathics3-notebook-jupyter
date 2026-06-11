@@ -204,8 +204,8 @@ class Mathics3Kernel(Kernel):
         )
 
     def _handle_html_cell_magic(self, code: str) -> bool:
-        """Handle %html magic command. Returns True if handled, False otherwise."""
-        html_match = re.match(r"%html\s+(.*)", code.strip(), re.DOTALL)
+        """Handle %html or .html magic command. Returns True if handled, False otherwise."""
+        html_match = re.match(r"[%.]%?html\s+(.*)", code.strip(), re.DOTALL)
         if html_match:
             html_content = html_match.group(1)
             try:
@@ -235,15 +235,21 @@ class Mathics3Kernel(Kernel):
         return False
 
     def _handle_pip_cell_magic(self, line: str) -> bool:
-        """Handle %pip magic command. Returns True if handled, False otherwise.
+        """Handle %pip or .pip magic command. Returns True if handled, False otherwise.
 
         Usage:
             %pip install package_name
             %pip list
-            %pip show package_name
+            %pip show package-name
+
+        Or:
+            .pip install
+            .pip list
+            .pip show package-
+
         """
         success = False
-        pip_match = re.match(r"%pip\s+(.*)", line.strip())
+        pip_match = re.match(r"[%.]%?pip\s+(.*)", line.strip())
         if pip_match:
             args = pip_match.group(1)
             try:
