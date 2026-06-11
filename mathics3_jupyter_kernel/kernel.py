@@ -75,6 +75,18 @@ class Mathics3Kernel(Kernel):
                     margin-left: 0 !important;
                     margin-right: auto !important;
                 }
+                /* Force the custom green branding for the Mathics3 logo container */
+                .jp-Mathics3Logo svg,
+                [data-icon="mathics3:logo"] svg {
+                  fill: #34a853 !important; /* Replace with your specific Mathics3 green hex */
+                }
+
+                /* Ensure paths inside the SVG don't fall back to standard theme fills */
+                .jp-Mathics3Logo g path,
+                [data-icon="mathics3:logo"] path {
+                  fill: currentcolor;
+                  color: #34a853 !important;
+                }
                 </style>
                 """
             )
