@@ -197,10 +197,11 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
         # For these forms, we strip off the outer "Form" part
         html_tag_format = FORM_TO_HTML_TAG_FORMAT[expr_head]
     else:
-        html_tag_format = "mathml"
+        html_tag_format = "text"
 
     # logger.warning(f"expr: {expr}")
-    # print(f"XXX expr: {expr} expr_head: {expr_head}")
+    # print(f"XXX format expr: {expr} expr_head: {expr_head}, "
+    #       f"tag_format: {html_tag_format}")
 
     # Note: We order tests more general tests at the end.
     # Note: I (rocky) haven't been able to get this to work using Symbols, e.g.
