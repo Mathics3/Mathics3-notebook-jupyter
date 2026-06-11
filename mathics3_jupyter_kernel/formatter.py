@@ -251,7 +251,15 @@ def format_output(evaluation, expr, execution_count: int) -> dict:
     # This part is similar to mathics.core.evaluation.format_output().
     if html_tag_format == "text":
         boxed = format_element(expr, evaluation, SymbolOutputForm)
-        return build_mime_content(mime_content, "text/plain", boxed.to_text)
+        boxed_head = boxed.head
+        if boxed_head is SymbolInterpretationBox:
+            box_str = str(boxed)
+            first_element = boxed.elements[0]
+            first_head = first_element.head
+            if first_head is SymbolPaneBox:
+                box_str = first_element.elements[0].value[1:-1]
+            return build_mime_content(mime_content, "text/plain", box_str)
+        return build_mime_content(mime_content, "text/plain", boxed.to_text())
 
     if expr_head is SymbolMathMLForm or html_tag_format == "mathml":
         return format_mathml(expr, evaluation, mime_content)
